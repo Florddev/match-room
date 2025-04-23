@@ -1,5 +1,7 @@
 import Image from "next/image";
 import { neon } from '@neondatabase/serverless';
+import {Input} from "@/components/ui/input";
+import {Button} from "@/components/ui/button";
 
 export default function Home() {
 
@@ -8,6 +10,7 @@ export default function Home() {
     // Connect to the Neon database
     const sql = neon(`${process.env.DATABASE_URL}`);
     const comment = formData.get('comment');
+
     // Insert the comment from the form into the Postgres database
     await sql`INSERT INTO comments (comment) VALUES (${comment})`;
   }
@@ -36,6 +39,7 @@ export default function Home() {
           </li>
         </ol>
 
+        {/*
         <div className="flex gap-4 items-center flex-col sm:flex-row">
           <a
             className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
@@ -61,10 +65,11 @@ export default function Home() {
             Read our docs
           </a>
         </div>
+        */}
 
-        <form action={create}>
-          <input type="text" placeholder="write a comment" name="comment" />
-          <button type="submit">Submit</button>
+        <form action={create} className="flex gap-2">
+          <Input type="text" placeholder="Write a comment" name="comment" />
+          <Button type="submit" variant="outline">Submit</Button>
         </form>
       </main>
       <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
