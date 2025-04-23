@@ -1,3 +1,4 @@
+// app/api/auth/login/route.ts
 import prisma from "@/lib/prisma"
 import bcrypt from "bcryptjs"
 import { SignJWT } from "jose"
@@ -21,6 +22,9 @@ export async function POST(request: Request) {
 
         const user = await prisma.user.findUnique({
             where: { email },
+            include: {
+                role: true
+            }
         })
 
         if (!user) {
@@ -42,7 +46,9 @@ export async function POST(request: Request) {
         const token = await new SignJWT({
             id: user.id,
             email: user.email,
-            name: user.name,
+            firstname: user.firstname,
+            lastname: user.lastname,
+            role: user.role.name
         })
             .setProtectedHeader({ alg: "HS256" })
             .setJti(nanoid())

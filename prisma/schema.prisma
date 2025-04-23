@@ -6,7 +6,7 @@
 
 generator client {
   provider      = "prisma-client-js"
-  output        = "./prisma"
+  output        = "../generated/client"
   binaryTargets = ["native", "windows", "darwin", "darwin-arm64"]
 }
 
@@ -31,14 +31,121 @@ model User {
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
+
+  hotels       UsersHotels[]
+  bookings     Booking[]
+  negotiations Negotiation[]
+
+  @@map("users")
 }
 
 model Role {
-  id          String  @id @default(uuid())
-  name        String  @unique
-  description String?
-  users       User[]
+  id   String @id @default(uuid())
+  name String @unique
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
+
+  users User[]
+
+  @@map("roles")
+}
+
+model Hotel {
+  id      String @id @default(uuid())
+  name    String
+  rate    Float
+  address String
+  city    String
+  zipCode String
+  phone   String
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  users UsersHotels[]
+  rooms Room[]
+
+  @@map("hotels")
+}
+
+model UsersHotels {
+  userId  String
+  hotelId String
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  hotel Hotel @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+
+  @@id([userId, hotelId])
+  @@map("users_hotels")
+}
+
+model Room {
+  id         String @id @default(uuid())
+  name       String
+  price      Float
+  rate       Float
+  content    String
+  categories String
+  tags       String
+  hotelId    String
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  hotel        Hotel         @relation(fields: [hotelId], references: [id])
+  types        RoomsTypes[]
+  bookings     Booking[]
+  negotiations Negotiation[]
+
+  @@map("rooms")
+}
+
+model Type {
+  id   String @id @default(uuid())
+  name String @unique
+
+  rooms RoomsTypes[]
+
+  @@map("types")
+}
+
+model RoomsTypes {
+  roomId String
+  typeId String
+
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  type Type @relation(fields: [typeId], references: [id], onDelete: Cascade)
+
+  @@id([roomId, typeId])
+  @@map("rooms_types")
+}
+
+model Booking {
+  id        String   @id @default(uuid())
+  price     Float
+  roomId    String
+  userId    String
+  startDate DateTime @map("start_date")
+  endDate   DateTime @map("end_date")
+
+  room Room @relation(fields: [roomId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("bookings")
+}
+
+model Negotiation {
+  id        String   @id @default(uuid())
+  userId    String
+  roomId    String
+  status    String
+  price     Float
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id])
+  room Room @relation(fields: [roomId], references: [id])
+
+  @@map("negotiations")
 }

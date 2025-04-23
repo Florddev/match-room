@@ -53,13 +53,31 @@ export default function ProfilePage() {
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div>
-                            <p className="text-sm font-medium text-muted-foreground">Nom</p>
-                            <p className="text-base">{user.name}</p>
+                            <p className="text-sm font-medium text-muted-foreground">Nom complet</p>
+                            <p className="text-base">{user.firstname} {user.lastname}</p>
                         </div>
                         <div>
                             <p className="text-sm font-medium text-muted-foreground">Email</p>
                             <p className="text-base">{user.email}</p>
                         </div>
+                        <div>
+                            <p className="text-sm font-medium text-muted-foreground">Téléphone</p>
+                            <p className="text-base">{user.phone}</p>
+                        </div>
+                        <div>
+                            <p className="text-sm font-medium text-muted-foreground">Adresse</p>
+                            <p className="text-base">{user.address}, {user.zipCode} {user.city}</p>
+                        </div>
+                        <div>
+                            <p className="text-sm font-medium text-muted-foreground">Rôle</p>
+                            <p className="text-base">{user.role.name}</p>
+                        </div>
+                        {user.siret && (
+                            <div>
+                                <p className="text-sm font-medium text-muted-foreground">SIRET</p>
+                                <p className="text-base">{user.siret}</p>
+                            </div>
+                        )}
                     </CardContent>
                     <CardFooter>
                         <Button variant="outline" className="w-full">
