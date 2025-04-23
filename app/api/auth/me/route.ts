@@ -1,4 +1,3 @@
-// app/api/auth/me/route.ts
 import prisma from "@/lib/prisma"
 import { jwtVerify } from "jose"
 import { cookies } from "next/headers"
@@ -19,15 +18,14 @@ export async function GET() {
         const JWT_SECRET_KEY = process.env.JWT_SECRET_KEY || "votre-clé-secrète-super-sécurisée"
         const { payload } = await jwtVerify(token, new TextEncoder().encode(JWT_SECRET_KEY))
 
-        const userId = payload.id as number
+        // ID est maintenant une string selon le nouveau modèle
+        const userId = payload.id as string
 
         const user = await prisma.user.findUnique({
             where: { id: userId },
-            select: {
-                id: true,
-                email: true,
-                name: true,
-            },
+            include: {
+                role: true
+            }
         })
 
         if (!user) {
@@ -37,7 +35,10 @@ export async function GET() {
             )
         }
 
-        return NextResponse.json({ user })
+        // Ne pas retourner le mot de passe
+        const { password, ...userWithoutPassword } = user
+
+        return NextResponse.json({ user: userWithoutPassword })
     } catch (error) {
         console.error("Erreur lors de la récupération de l'utilisateur:", error)
         return NextResponse.json(

@@ -5,15 +5,27 @@ import { NextResponse } from "next/server"
 export async function POST(request: Request) {
     try {
         const body = await request.json()
-        const { name, email, password } = body
+        const {
+            firstname,
+            lastname,
+            email,
+            password,
+            address,
+            city,
+            zipCode,
+            phone,
+            siret
+        } = body
 
-        if (!name || !email || !password) {
+        // Vérification des champs obligatoires
+        if (!firstname || !lastname || !email || !password || !address || !city || !zipCode || !phone) {
             return NextResponse.json(
-                { message: "Tous les champs sont requis" },
+                { message: "Tous les champs obligatoires doivent être remplis" },
                 { status: 400 }
             )
         }
 
+        // Vérifier si l'utilisateur existe déjà
         const existingUser = await prisma.user.findUnique({
             where: { email },
         })
@@ -25,14 +37,33 @@ export async function POST(request: Request) {
             )
         }
 
+        // Récupérer le rôle CLIENT (ou créer si n'existe pas encore)
+        const clientRole = await prisma.role.findUnique({
+            where: { name: "CLIENT" }
+        }) || await prisma.role.create({
+            data: { name: "CLIENT" }
+        })
+
+        // Hasher le mot de passe
         const hashedPassword = await bcrypt.hash(password, 10)
 
+        // Créer l'utilisateur
         const user = await prisma.user.create({
             data: {
-                name,
+                firstname,
+                lastname,
                 email,
                 password: hashedPassword,
+                address,
+                city,
+                zipCode,
+                phone,
+                siret: siret || null,
+                roleId: clientRole.id,
             },
+            include: {
+                role: true
+            }
         })
 
         const { password: _, ...userWithoutPassword } = user

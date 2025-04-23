@@ -1,20 +1,49 @@
+// lib/auth-context.tsx
 "use client"
 
 import { useRouter } from "next/navigation"
 import { createContext, ReactNode, useContext, useEffect, useState } from "react"
 
+type Role = {
+    id: string
+    name: string
+}
+
 type User = {
-    id: number
-    name: string | null
+    id: string
+    firstname: string
+    lastname: string
     email: string
+    address: string
+    city: string
+    zipCode: string
+    phone: string
+    siret: string | null
+    roleId: string
+    role: Role
 }
 
 type AuthContextType = {
     user: User | null
     isLoading: boolean
     login: (email: string, password: string) => Promise<void>
-    register: (name: string, email: string, password: string) => Promise<void>
+    register: (userData: RegistrationData) => Promise<void>
     logout: () => Promise<void>
+    isAdmin: () => boolean
+    isClient: () => boolean
+    isManager: () => boolean
+}
+
+type RegistrationData = {
+    firstname: string
+    lastname: string
+    email: string
+    password: string
+    address: string
+    city: string
+    zipCode: string
+    phone: string
+    siret?: string
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -24,6 +53,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [isLoading, setIsLoading] = useState(true)
     const router = useRouter()
 
+    // Vérifier si l'utilisateur est connecté au chargement
     useEffect(() => {
         const checkUser = async () => {
             try {
@@ -61,6 +91,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             const data = await res.json()
             setUser(data.user)
 
+            // Récupérer callbackUrl s'il existe
             const searchParams = new URLSearchParams(window.location.search)
             const callbackUrl = searchParams.get('callbackUrl') || '/'
 
@@ -73,7 +104,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
     }
 
-    const register = async (name: string, email: string, password: string) => {
+    const register = async (userData: RegistrationData) => {
         setIsLoading(true)
         try {
             const res = await fetch("/api/auth/register", {
@@ -81,7 +112,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 headers: {
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify({ name, email, password }),
+                body: JSON.stringify(userData),
             })
 
             if (!res.ok) {
@@ -118,8 +149,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
     }
 
+    // Méthodes pour vérifier le rôle de l'utilisateur
+    const isAdmin = () => {
+        return user?.role?.name === "ADMIN"
+    }
+
+    const isClient = () => {
+        return user?.role?.name === "CLIENT"
+    }
+
+    const isManager = () => {
+        return user?.role?.name === "MANAGER"
+    }
+
     return (
-        <AuthContext.Provider value={{ user, isLoading, login, register, logout }}>
+        <AuthContext.Provider value={{
+            user,
+            isLoading,
+            login,
+            register,
+            logout,
+            isAdmin,
+            isClient,
+            isManager
+        }}>
             {children}
         </AuthContext.Provider>
     )
