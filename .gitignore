@@ -40,6 +40,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+generated/client
 prisma/prisma
 prisma/.prisma
 prisma/**/libquery_engine-*
