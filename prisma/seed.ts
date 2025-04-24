@@ -4,6 +4,7 @@ import { hash } from 'bcryptjs';
 const prisma = new PrismaClient();
 
 async function main() {
+    // Supprimer les données existantes (optionnel, utile pendant le développement)
     await prisma.negotiation.deleteMany();
     await prisma.booking.deleteMany();
     await prisma.roomsTypes.deleteMany();
@@ -16,6 +17,7 @@ async function main() {
 
     console.log('🧹 Nettoyage de la base de données terminé');
 
+    // Créer les rôles
     const adminRole = await prisma.role.create({
         data: {
             name: 'ADMIN',
@@ -36,6 +38,7 @@ async function main() {
 
     console.log('👑 Rôles créés');
 
+    // Créer les types de chambre
     const typesSeed = [
         { name: 'Suite' },
         { name: 'Simple' },
@@ -54,6 +57,7 @@ async function main() {
 
     console.log('🏷️ Types de chambre créés');
 
+    // Créer utilisateur administrateur
     const adminPasswordHash = await hash('Admin123!', 10);
     const admin = await prisma.user.create({
         data: {
@@ -71,6 +75,7 @@ async function main() {
 
     console.log('👨‍💼 Utilisateur admin créé');
 
+    // Créer quelques managers
     const managerPasswordHash = await hash('Manager123!', 10);
     const managers = await Promise.all([
         prisma.user.create({
@@ -105,6 +110,7 @@ async function main() {
 
     console.log('👨‍💼 Managers créés');
 
+    // Créer quelques clients
     const clientPasswordHash = await hash('Client123!', 10);
     const clients = await Promise.all([
         prisma.user.create({
@@ -150,6 +156,7 @@ async function main() {
 
     console.log('👨‍👩‍👧 Clients créés');
 
+    // Créer des hôtels
     const hotels = await Promise.all([
         prisma.hotel.create({
             data: {
@@ -185,6 +192,7 @@ async function main() {
 
     console.log('🏨 Hôtels créés');
 
+    // Associer les managers à des hôtels
     await prisma.usersHotels.createMany({
         data: [
             { userId: managers[0].id, hotelId: hotels[0].id },
@@ -257,78 +265,88 @@ async function main() {
             .map(data => prisma.roomsTypes.create({ data }))
     );
 
-    console.log('🔄 Association chambres-types créée');
+    console.log('🔄 Association types-chambres créée');
 
-    const today = new Date();
-    const bookings = await Promise.all([
-        prisma.booking.create({
-            data: {
-                userId: clients[0].id,
+    // Créer quelques réservations
+    const now = new Date();
+    const oneWeekLater = new Date(now);
+    oneWeekLater.setDate(oneWeekLater.getDate() + 7);
+
+    const twoWeeksLater = new Date(now);
+    twoWeeksLater.setDate(twoWeeksLater.getDate() + 14);
+
+    await prisma.booking.createMany({
+        data: [
+            {
+                price: rooms[0].price * 3, // 3 nuits
                 roomId: rooms[0].id,
-                startDate: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 10),
-                endDate: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 13),
-                price: rooms[0].price * 3,
+                userId: clients[0].id,
+                startDate: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 30),
+                endDate: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 33),
             },
-        }),
-        prisma.booking.create({
-            data: {
-                userId: clients[1].id,
+            {
+                price: rooms[3].price * 5, // 5 nuits
                 roomId: rooms[3].id,
-                startDate: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 15),
-                endDate: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 20),
-                price: rooms[3].price * 5,
+                userId: clients[1].id,
+                startDate: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 45),
+                endDate: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 50),
             },
-        }),
-        prisma.booking.create({
-            data: {
-                userId: clients[2].id,
+            {
+                price: rooms[6].price * 2, // 2 nuits
                 roomId: rooms[6].id,
-                startDate: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 20),
-                endDate: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 22),
-                price: rooms[6].price * 2,
+                userId: clients[2].id,
+                startDate: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 15),
+                endDate: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 17),
             },
-        }),
-    ]);
+        ],
+    });
 
     console.log('📅 Réservations créées');
 
-    const negotiations = await Promise.all([
-        prisma.negotiation.create({
-            data: {
+    // Créer quelques négociations
+    await prisma.negotiation.createMany({
+        data: [
+            {
                 userId: clients[0].id,
                 roomId: rooms[1].id,
                 status: 'PENDING',
-                price: rooms[1].price * 0.85,
+                price: rooms[1].price * 0.85, // 15% de réduction demandée
+                createdAt: new Date(),
+                updatedAt: new Date(),
+                startDate: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 5),
+                endDate: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 3),
             },
-        }),
-        prisma.negotiation.create({
-            data: {
+            {
                 userId: clients[1].id,
                 roomId: rooms[4].id,
                 status: 'ACCEPTED',
-                price: rooms[4].price * 0.9,
+                price: rooms[4].price * 0.9, // 10% de réduction acceptée
+                startDate: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 5),
+                endDate: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 3),
             },
-        }),
-        prisma.negotiation.create({
-            data: {
+            {
                 userId: clients[2].id,
                 roomId: rooms[7].id,
                 status: 'REJECTED',
-                price: rooms[7].price * 0.7,
+                price: rooms[7].price * 0.7, // 30% de réduction rejetée
+                createdAt: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 10),
+                updatedAt: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 9),
+                startDate: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 5),
+                endDate: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 3),
             },
-        }),
-    ]);
+        ],
+    });
 
-    console.log('🤝 Négociations créées');
+    console.log('💬 Négociations créées');
 
-    console.log('🌱 Données initiales créées avec succès');
+    console.log('✅ Seed terminé avec succès');
 }
 
 main()
-    .catch((e) => {
-        console.error('Erreur lors du seeding:', e);
-        process.exit(1);
-    })
-    .finally(async () => {
-        await prisma.$disconnect();
-    });
+.catch((e) => {
+    console.error(e);
+    process.exit(1);
+})
+.finally(async () => {
+    await prisma.$disconnect();
+});
