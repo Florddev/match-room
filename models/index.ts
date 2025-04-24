@@ -1,3 +1,23 @@
+export type Role = {
+    id: string
+    name: string
+}
+
+export type User = {
+    id: string
+    firstname: string
+    lastname: string
+    email: string
+    address: string
+    city: string
+    zipCode: string
+    phone: string
+    siret: string | null
+    roleId: string
+    role: Role
+    hotels: Hotel[]
+}
+
 export type Hotel = {
     id: string
     name: string

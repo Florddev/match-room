@@ -3,25 +3,7 @@
 
 import { useRouter } from "next/navigation"
 import { createContext, ReactNode, useContext, useEffect, useState } from "react"
-
-type Role = {
-    id: string
-    name: string
-}
-
-type User = {
-    id: string
-    firstname: string
-    lastname: string
-    email: string
-    address: string
-    city: string
-    zipCode: string
-    phone: string
-    siret: string | null
-    roleId: string
-    role: Role
-}
+import { User } from "@/models";
 
 type AuthContextType = {
     user: User | null
