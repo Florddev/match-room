@@ -53,7 +53,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [isLoading, setIsLoading] = useState(true)
     const router = useRouter()
 
-    // Vérifier si l'utilisateur est connecté au chargement
     useEffect(() => {
         const checkUser = async () => {
             try {
@@ -91,7 +90,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             const data = await res.json()
             setUser(data.user)
 
-            // Récupérer callbackUrl s'il existe
             const searchParams = new URLSearchParams(window.location.search)
             const callbackUrl = searchParams.get('callbackUrl') || '/'
 
@@ -149,7 +147,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
     }
 
-    // Méthodes pour vérifier le rôle de l'utilisateur
     const isAdmin = () => {
         return user?.role?.name === "ADMIN"
     }

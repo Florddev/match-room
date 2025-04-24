@@ -2,10 +2,8 @@ import { jwtVerify } from "jose"
 import type { NextRequest } from "next/server"
 import { NextResponse } from "next/server"
 
-// Routes qui nécessitent une authentification
 const protectedRoutes = ["/profile", "/posts/create"]
 
-// Routes d'authentification
 const authRoutes = ["/auth/login", "/auth/register"]
 
 export async function middleware(request: NextRequest) {
@@ -44,7 +42,6 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
 }
 
-// Définir sur quelles routes le middleware doit s'exécuter
 export const config = {
     matcher: [
         "/((?!api|_next/static|_next/image|favicon.ico).*)",
