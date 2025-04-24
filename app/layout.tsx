@@ -1,6 +1,6 @@
 "use client";
 
-import Navbar from "@/components/Navbar";
+import Navbar from "@/components/navbar";
 import { AuthProvider } from "@/lib/auth-context";
 import { SearchProvider } from "@/lib/search-context";
 import { Inter } from "next/font/google";
