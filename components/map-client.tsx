@@ -48,6 +48,9 @@ export default function MapClientComponent({ filteredRooms, hotels }: MapClientC
     const markersRef = useRef<any[]>([]);
     const [geocodingCache, setGeocodingCache] = useState<GeocodingCache>({});
     const [isGeocoding, setIsGeocoding] = useState<boolean>(false);
+    const [leafletLoaded, setLeafletLoaded] = useState<boolean>(false);
+    const [mapInitialized, setMapInitialized] = useState<boolean>(false);
+    const [L, setL] = useState<any>(null); // State pour stocker l'instance Leaflet
 
     // Fonction pour géocoder une adresse
     const geocodeAddress = async (hotel: Hotel): Promise<GeoCoordinates> => {
@@ -95,34 +98,20 @@ export default function MapClientComponent({ filteredRooms, hotels }: MapClientC
         }
     };
 
-    // Effet d'initialisation de la carte - exécuté une seule fois
+    // Charger Leaflet de manière dynamique
     useEffect(() => {
-        if (!mapRef.current || mapInstanceRef.current) return;
+        const loadLeaflet = async () => {
+            try {
+                // Importer Leaflet de manière dynamique
+                const leafletModule = await import('leaflet');
+                setL(leafletModule.default || leafletModule); // Stocker l'instance Leaflet
+                setLeafletLoaded(true);
+            } catch (error) {
+                console.error("Erreur lors du chargement de Leaflet:", error);
+            }
+        };
 
-        // Import dynamique de Leaflet
-        const L = require('leaflet');
-
-        // Fix pour les icônes de Leaflet
-        delete L.Icon.Default.prototype._getIconUrl;
-        L.Icon.Default.mergeOptions({
-            iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
-            iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
-            shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
-        });
-
-        console.log("Initializing Leaflet map...");
-
-        // Créer l'instance de carte
-        const map = L.map(mapRef.current).setView([48.8566, 2.3522], 12); // Paris comme centre par défaut
-
-        // Ajouter la couche OpenStreetMap
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-            maxZoom: 19,
-        }).addTo(map);
-
-        // Stocker l'instance de map dans la référence
-        mapInstanceRef.current = map;
+        loadLeaflet();
 
         // Nettoyage à la destruction du composant
         return () => {
@@ -131,99 +120,157 @@ export default function MapClientComponent({ filteredRooms, hotels }: MapClientC
                 mapInstanceRef.current = null;
             }
         };
-    }, []); // Dépendances vides - s'exécute seulement au montage
+    }, []);
+
+    // Effet d'initialisation de la carte - exécuté une fois Leaflet chargé
+    useEffect(() => {
+        // Ne continuer que si Leaflet est chargé, l'élément DOM existe et la carte n'est pas déjà initialisée
+        if (!leafletLoaded || !mapRef.current || !L || mapInstanceRef.current) return;
+
+        try {
+            console.log("Initializing Leaflet map...");
+
+            // Fix pour les icônes de Leaflet
+            delete L.Icon.Default.prototype._getIconUrl;
+            L.Icon.Default.mergeOptions({
+                iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
+                iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
+                shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
+            });
+
+            // Créer l'instance de carte
+            const map = L.map(mapRef.current).setView([48.8566, 2.3522], 12); // Paris comme centre par défaut
+
+            // Ajouter la couche OpenStreetMap
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                maxZoom: 19,
+            }).addTo(map);
+
+            // Stocker l'instance de map dans la référence
+            mapInstanceRef.current = map;
+
+            // Indiquer que la carte est initialisée
+            setMapInitialized(true);
+        } catch (error) {
+            console.error("Erreur lors de l'initialisation de la carte:", error);
+        }
+    }, [leafletLoaded, L]); // Dépendances: leafletLoaded et L
 
     // Effet de mise à jour des marqueurs - exécuté quand filteredRooms ou hotels change
     useEffect(() => {
-        if (!mapInstanceRef.current || hotels.length === 0 || isGeocoding) return;
+        // Ne pas continuer si la carte n'est pas initialisée, pas d'hôtels, pas de Leaflet ou déjà en train de géocoder
+        if (!mapInitialized || !mapInstanceRef.current || !L || hotels.length === 0 || isGeocoding || filteredRooms.length === 0) {
+            return;
+        }
 
-        const L = require('leaflet');
+        // Vérifier que nous avons bien une instance de carte
         const map = mapInstanceRef.current;
 
         // Fonction pour mettre à jour les marqueurs
         async function updateMarkers() {
             setIsGeocoding(true);
 
-            // Supprimer les marqueurs existants
-            markersRef.current.forEach(marker => marker.remove());
-            markersRef.current = [];
+            try {
+                // Supprimer les marqueurs existants
+                markersRef.current.forEach(marker => marker.remove());
+                markersRef.current = [];
 
-            // Obtenir les hôtels pertinents
-            const filteredHotelIds = new Set(filteredRooms.map(room => room.hotelId));
-            const relevantHotels = hotels.filter(hotel => filteredHotelIds.has(hotel.id));
-            console.log(`Found ${relevantHotels.length} relevant hotels`);
+                // Obtenir les hôtels pertinents
+                const filteredHotelIds = new Set(filteredRooms.map(room => room.hotelId));
+                const relevantHotels = hotels.filter(hotel => filteredHotelIds.has(hotel.id));
+                console.log(`Found ${relevantHotels.length} relevant hotels`);
 
-            // Si nous avons des hôtels pertinents, ajuster la vue de la carte
-            if (relevantHotels.length > 0) {
-                const bounds = L.latLngBounds([]);
+                // Si nous avons des hôtels pertinents, ajuster la vue de la carte
+                if (relevantHotels.length > 0) {
+                    const bounds = L.latLngBounds([]);
 
-                // Traiter chaque hôtel
-                for (const hotel of relevantHotels) {
-                    // Obtenir toutes les chambres pour cet hôtel qui sont dans la liste filtrée
-                    const hotelRooms = filteredRooms.filter(room => room.hotelId === hotel.id);
+                    // Traiter chaque hôtel
+                    for (const hotel of relevantHotels) {
+                        // Obtenir toutes les chambres pour cet hôtel qui sont dans la liste filtrée
+                        const hotelRooms = filteredRooms.filter(room => room.hotelId === hotel.id);
 
-                    // Obtenir la chambre avec le prix le plus bas pour cet hôtel
-                    const minPrice = Math.min(...hotelRooms.map(room => room.price));
+                        if (hotelRooms.length === 0) continue;
 
-                    // Obtenir les coordonnées de l'hôtel par géocodage
-                    const coordinates = await geocodeAddress(hotel);
+                        // Obtenir la chambre avec le prix le plus bas pour cet hôtel
+                        const minPrice = Math.min(...hotelRooms.map(room => room.price));
 
-                    // Créer un marqueur personnalisé avec icône de prix
-                    const priceIcon = L.divIcon({
-                        className: 'custom-price-marker',
-                        html: `<div style="background-color:#4f46e5; color:white; padding:6px 12px; border-radius:9999px; font-weight:bold; font-size:14px; min-width:60px; text-align:center; box-shadow:0 2px 4px rgba(0,0,0,0.2);">${minPrice}€</div>`,
-                        iconSize: [80, 40],
-                        iconAnchor: [40, 20]
-                    });
+                        // Obtenir les coordonnées de l'hôtel par géocodage
+                        const coordinates = await geocodeAddress(hotel);
 
-                    // Ajouter le marqueur à la carte
-                    const marker = L.marker([coordinates.lat, coordinates.lng], { icon: priceIcon }).addTo(map);
-                    markersRef.current.push(marker);
+                        // Vérifier que les coordonnées sont valides
+                        if (isNaN(coordinates.lat) || isNaN(coordinates.lng)) {
+                            console.error(`Coordonnées invalides pour l'hôtel ${hotel.name}:`, coordinates);
+                            continue;
+                        }
 
-                    // Créer une popup avec les détails de l'hôtel
-                    const popupContent = `
-                        <div style="max-width: 250px;">
-                            <h3 style="font-size: 16px; font-weight: 500; margin-bottom: 5px;">${hotel.name}</h3>
-                            <p style="font-size: 14px; color: #666; margin-bottom: 10px;">${hotel.address}, ${hotel.city} ${hotel.zipCode}</p>
-                            <p style="font-size: 14px; font-weight: 700; margin-bottom: 5px;">${hotelRooms.length} chambres disponibles</p>
-                            <p style="font-size: 14px;">À partir de <span style="font-weight: bold;">${minPrice}€</span> / nuit</p>
-                            <div style="display: flex; align-items: center; margin-top: 5px;">
-                                <span style="font-size: 14px; margin-right: 5px;">${hotel.rate}</span>
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="#FFD700">
-                                    <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
-                                </svg>
-                            </div>
-                        </div>
-                    `;
+                        try {
+                            // Créer un marqueur personnalisé avec icône de prix
+                            const priceIcon = L.divIcon({
+                                className: 'custom-price-marker',
+                                html: `<div style="background-color:#4f46e5; color:white; padding:6px 12px; border-radius:9999px; font-weight:bold; font-size:14px; min-width:60px; text-align:center; box-shadow:0 2px 4px rgba(0,0,0,0.2);">${minPrice}€</div>`,
+                                iconSize: [80, 40],
+                                iconAnchor: [40, 20]
+                            });
 
-                    marker.bindPopup(popupContent);
+                            // Ajouter le marqueur à la carte
+                            const marker = L.marker([coordinates.lat, coordinates.lng], { icon: priceIcon }).addTo(map);
+                            markersRef.current.push(marker);
 
-                    // Étendre les limites pour inclure ce marqueur
-                    bounds.extend([coordinates.lat, coordinates.lng]);
-                }
+                            // Créer une popup avec les détails de l'hôtel
+                            const popupContent = `
+                                <div style="max-width: 250px;">
+                                    <h3 style="font-size: 16px; font-weight: 500; margin-bottom: 5px;">${hotel.name}</h3>
+                                    <p style="font-size: 14px; color: #666; margin-bottom: 10px;">${hotel.address}, ${hotel.city} ${hotel.zipCode}</p>
+                                    <p style="font-size: 14px; font-weight: 700; margin-bottom: 5px;">${hotelRooms.length} chambres disponibles</p>
+                                    <p style="font-size: 14px;">À partir de <span style="font-weight: bold;">${minPrice}€</span> / nuit</p>
+                                    <div style="display: flex; align-items: center; margin-top: 5px;">
+                                        <span style="font-size: 14px; margin-right: 5px;">${hotel.rate}</span>
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="#FFD700">
+                                            <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
+                                        </svg>
+                                    </div>
+                                </div>
+                            `;
 
-                // Ajuster la vue de la carte pour afficher tous les marqueurs
-                if (bounds.isValid()) {
-                    map.fitBounds(bounds, {
-                        padding: [50, 50]
-                    });
+                            marker.bindPopup(popupContent);
 
-                    // Limiter le niveau de zoom maximum
-                    if (map.getZoom() > 15) {
-                        map.setZoom(15);
+                            // Étendre les limites pour inclure ce marqueur
+                            bounds.extend([coordinates.lat, coordinates.lng]);
+                        } catch (error) {
+                            console.error(`Erreur lors de l'ajout du marqueur pour ${hotel.name}:`, error);
+                        }
                     }
+
+                    // Ajuster la vue de la carte pour afficher tous les marqueurs
+                    if (bounds.isValid()) {
+                        try {
+                            map.fitBounds(bounds, {
+                                padding: [50, 50]
+                            });
+
+                            // Limiter le niveau de zoom maximum
+                            if (map.getZoom() > 15) {
+                                map.setZoom(15);
+                            }
+                        } catch (error) {
+                            console.error("Erreur lors de l'ajustement de la vue de la carte:", error);
+                        }
+                    }
+
+                    console.log("Map updated with markers");
                 }
-
-                console.log("Map updated with markers");
+            } catch (error) {
+                console.error("Erreur lors de la mise à jour des marqueurs:", error);
+            } finally {
+                setIsGeocoding(false);
             }
-
-            setIsGeocoding(false);
         }
 
         // Mettre à jour les marqueurs
         updateMarkers();
 
-    }, [filteredRooms, hotels]); // Dépendances: filteredRooms et hotels
+    }, [filteredRooms, hotels, mapInitialized, L, isGeocoding]);
 
     return (
         <>

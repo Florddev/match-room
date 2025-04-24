@@ -1,5 +1,6 @@
 "use client";
 import { Heart } from "lucide-react";
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 type Room = {
@@ -26,6 +27,7 @@ export default function RoomList({ searchTerm, onFilteredRoomsChange }: RoomList
     const [favorites, setFavorites] = useState<Set<string>>(new Set());
     const [currentImageIndexes, setCurrentImageIndexes] = useState<Record<string, number>>({});
     const [isLoading, setIsLoading] = useState(true);
+    const [fetchError, setFetchError] = useState<string | null>(null);
 
     // Mémorise la fonction de callback pour éviter les rendus infinis
     const updateParentWithFilteredRooms = useCallback((roomsToUpdate: Room[]) => {
@@ -40,35 +42,56 @@ export default function RoomList({ searchTerm, onFilteredRoomsChange }: RoomList
 
         async function fetchRooms() {
             try {
-                console.log("Fetching rooms data...");
+                console.log("Récupération des données des chambres...");
+
+                // Ajouter un timeout pour éviter les blocages infinis
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 10000);
+
                 const res = await fetch("/api/rooms", {
                     method: "GET",
                     headers: {
                         "Content-Type": "application/json",
                     },
+                    signal: controller.signal,
+                    cache: 'no-store', // Éviter les problèmes de cache
                 });
 
-                if (!res.ok) throw new Error("Erreur lors du chargement des chambres");
+                clearTimeout(timeoutId);
+
+                if (!res.ok) {
+                    throw new Error(`Erreur lors du chargement des chambres: ${res.status}`);
+                }
 
                 const data: Room[] = await res.json();
+                console.log(`${data.length} chambres récupérées`);
 
                 if (!isMounted) return;
 
+                // S'assurer que chaque chambre a un ID valide
+                const validRooms = data.filter(room => room.id && typeof room.id === 'string' && room.id.trim() !== '');
+
+                if (validRooms.length !== data.length) {
+                    console.warn(`Filtrage de ${data.length - validRooms.length} chambres avec ID invalide`);
+                }
+
                 // Initialize image indexes
                 const initialIndexes: Record<string, number> = {};
-                data.forEach(room => {
+                validRooms.forEach(room => {
                     initialIndexes[room.id] = 0;
                 });
 
                 setCurrentImageIndexes(initialIndexes);
-                setRooms(data);
-                setFilteredRooms(data);
-                updateParentWithFilteredRooms(data);
+                setRooms(validRooms);
+                setFilteredRooms(validRooms);
+                updateParentWithFilteredRooms(validRooms);
                 setIsLoading(false);
+                setFetchError(null);
             } catch (error) {
-                console.error("Error fetching rooms:", error);
+                console.error("Erreur lors de la récupération des chambres:", error);
                 if (isMounted) {
                     setIsLoading(false);
+                    setFetchError(error instanceof Error ? error.message : "Une erreur s'est produite");
                 }
             }
         }
@@ -230,7 +253,10 @@ export default function RoomList({ searchTerm, onFilteredRoomsChange }: RoomList
         return totalRelevance;
     }
 
-    const toggleFavorite = (roomId: string) => {
+    const toggleFavorite = (e: React.MouseEvent, roomId: string) => {
+        e.preventDefault(); // Empêcher la navigation lors du clic sur le bouton favori
+        e.stopPropagation(); // Empêcher la propagation vers le parent
+
         setFavorites(prev => {
             const newFavorites = new Set(prev);
             if (newFavorites.has(roomId)) {
@@ -242,18 +268,21 @@ export default function RoomList({ searchTerm, onFilteredRoomsChange }: RoomList
         });
     };
 
-    const nextImage = (roomId: string) => {
-        setCurrentImageIndexes(prev => ({
-            ...prev,
-            [roomId]: (prev[roomId] + 1) % 5 // Assuming 5 images per room
-        }));
-    };
+    const handleImageNav = (e: React.MouseEvent, roomId: string, direction: 'prev' | 'next') => {
+        e.preventDefault(); // Empêcher la navigation 
+        e.stopPropagation(); // Empêcher la propagation vers le parent
 
-    const prevImage = (roomId: string) => {
-        setCurrentImageIndexes(prev => ({
-            ...prev,
-            [roomId]: (prev[roomId] - 1 + 5) % 5 // Assuming 5 images per room
-        }));
+        if (direction === 'prev') {
+            setCurrentImageIndexes(prev => ({
+                ...prev,
+                [roomId]: (prev[roomId] - 1 + 5) % 5 // Assuming 5 images per room
+            }));
+        } else {
+            setCurrentImageIndexes(prev => ({
+                ...prev,
+                [roomId]: (prev[roomId] + 1) % 5 // Assuming 5 images per room
+            }));
+        }
     };
 
     return (
@@ -262,7 +291,13 @@ export default function RoomList({ searchTerm, onFilteredRoomsChange }: RoomList
 
             {isLoading ? (
                 <div className="text-center py-10">
-                    <p className="text-xl text-gray-600">Chargement des chambres...</p>
+                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
+                    <p className="mt-4 text-xl text-gray-600">Chargement des chambres...</p>
+                </div>
+            ) : fetchError ? (
+                <div className="text-center py-10">
+                    <p className="text-xl text-red-600 mb-2">Erreur de chargement</p>
+                    <p className="text-gray-600">{fetchError}</p>
                 </div>
             ) : filteredRooms.length === 0 ? (
                 <div className="text-center py-10">
@@ -272,9 +307,20 @@ export default function RoomList({ searchTerm, onFilteredRoomsChange }: RoomList
             ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                     {filteredRooms.map((room) => (
-                        <div key={room.id} className="flex flex-col h-full">
+                        // Vérifier que l'ID est valide avant de créer le lien
+                        <Link
+                            href={room.id ? `/room/${encodeURIComponent(room.id)}` : "#"}
+                            key={room.id}
+                            className="flex flex-col h-full rounded-2xl overflow-hidden bg-white shadow-sm hover:shadow-md transition-shadow"
+                            onClick={(e) => {
+                                if (!room.id) {
+                                    e.preventDefault();
+                                    console.error("ID de chambre invalide");
+                                }
+                            }}
+                        >
                             {/* Image carousel */}
-                            <div className="relative rounded-2xl overflow-hidden aspect-square mb-3">
+                            <div className="relative overflow-hidden aspect-square">
                                 <img
                                     src="/hotel.jpg"
                                     alt={room.name}
@@ -283,10 +329,7 @@ export default function RoomList({ searchTerm, onFilteredRoomsChange }: RoomList
 
                                 {/* Image navigation buttons */}
                                 <button
-                                    onClick={(e) => {
-                                        e.preventDefault();
-                                        prevImage(room.id);
-                                    }}
+                                    onClick={(e) => handleImageNav(e, room.id, 'prev')}
                                     className="absolute left-3 top-1/2 -translate-y-1/2 bg-white rounded-full p-1.5 shadow-md opacity-80 hover:opacity-100 transition"
                                 >
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
@@ -295,10 +338,7 @@ export default function RoomList({ searchTerm, onFilteredRoomsChange }: RoomList
                                 </button>
 
                                 <button
-                                    onClick={(e) => {
-                                        e.preventDefault();
-                                        nextImage(room.id);
-                                    }}
+                                    onClick={(e) => handleImageNav(e, room.id, 'next')}
                                     className="absolute right-3 top-1/2 -translate-y-1/2 bg-white rounded-full p-1.5 shadow-md opacity-80 hover:opacity-100 transition"
                                 >
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
@@ -318,10 +358,7 @@ export default function RoomList({ searchTerm, onFilteredRoomsChange }: RoomList
 
                                 {/* Favorite button */}
                                 <button
-                                    onClick={(e) => {
-                                        e.preventDefault();
-                                        toggleFavorite(room.id);
-                                    }}
+                                    onClick={(e) => toggleFavorite(e, room.id)}
                                     className="absolute top-3 right-3 z-10"
                                 >
                                     <Heart
@@ -339,7 +376,7 @@ export default function RoomList({ searchTerm, onFilteredRoomsChange }: RoomList
                             </div>
 
                             {/* Room details */}
-                            <div className="flex-grow">
+                            <div className="flex-grow p-4">
                                 <div className="flex justify-between items-start">
                                     <div>
                                         <h3 className="font-medium text-gray-900">{room.name}</h3>
@@ -354,7 +391,7 @@ export default function RoomList({ searchTerm, onFilteredRoomsChange }: RoomList
                                 </div>
                                 <p className="mt-3 font-medium">{room.price} € par nuit</p>
                             </div>
-                        </div>
+                        </Link>
                     ))}
                 </div>
             )}

@@ -195,7 +195,7 @@ async function main() {
 
     console.log('🔄 Association managers-hôtels créée');
 
-    const rooms = [];
+    const rooms: any[] = [];
     for (const hotel of hotels) {
         const hotelRooms = await Promise.all([
             prisma.room.create({
@@ -244,17 +244,17 @@ async function main() {
             for (let i = 0; i < hotels.length; i++) {
                 if (index === 0) {
                     roomsWithType.push(
-                        { roomId: rooms[i*3].id, typeId: types[0].id },
-                        { roomId: rooms[i*3].id, typeId: types[4].id },
-                        { roomId: rooms[i*3+1].id, typeId: types[2].id },
-                        { roomId: rooms[i*3+2].id, typeId: types[3].id },
+                        { roomId: rooms[i * 3].id, typeId: types[0].id },
+                        { roomId: rooms[i * 3].id, typeId: types[4].id },
+                        { roomId: rooms[i * 3 + 1].id, typeId: types[2].id },
+                        { roomId: rooms[i * 3 + 2].id, typeId: types[3].id },
                     );
                 }
             }
             return roomsWithType;
         })
-        .filter(item => item !== null)
-        .map(data => prisma.roomsTypes.create({ data }))
+            .filter(item => item !== null)
+            .map(data => prisma.roomsTypes.create({ data }))
     );
 
     console.log('🔄 Association chambres-types créée');
@@ -297,7 +297,7 @@ async function main() {
             data: {
                 userId: clients[0].id,
                 roomId: rooms[1].id,
-                status: 'PENDING', 
+                status: 'PENDING',
                 price: rooms[1].price * 0.85,
             },
         }),
