@@ -17,7 +17,6 @@ export async function POST(request: Request) {
             siret
         } = body
 
-        // Vérification des champs obligatoires
         if (!firstname || !lastname || !email || !password || !address || !city || !zipCode || !phone) {
             return NextResponse.json(
                 { message: "Tous les champs obligatoires doivent être remplis" },
@@ -25,7 +24,6 @@ export async function POST(request: Request) {
             )
         }
 
-        // Vérifier si l'utilisateur existe déjà
         const existingUser = await prisma.user.findUnique({
             where: { email },
         })
@@ -37,17 +35,14 @@ export async function POST(request: Request) {
             )
         }
 
-        // Récupérer le rôle CLIENT (ou créer si n'existe pas encore)
         const clientRole = await prisma.role.findUnique({
             where: { name: "CLIENT" }
         }) || await prisma.role.create({
             data: { name: "CLIENT" }
         })
 
-        // Hasher le mot de passe
         const hashedPassword = await bcrypt.hash(password, 10)
 
-        // Créer l'utilisateur
         const user = await prisma.user.create({
             data: {
                 firstname,
