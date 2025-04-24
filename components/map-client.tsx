@@ -1,7 +1,7 @@
 "use client";
 
 import 'leaflet/dist/leaflet.css';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 // Types pour les chambres et hôtels
 type Hotel = {
@@ -26,6 +26,17 @@ type Room = {
     hotelId: string;
 };
 
+// Type pour les coordonnées géographiques
+type GeoCoordinates = {
+    lat: number;
+    lng: number;
+};
+
+// Type pour le cache de géocodage
+type GeocodingCache = {
+    [key: string]: GeoCoordinates;
+};
+
 interface MapClientComponentProps {
     filteredRooms: Room[];
     hotels: Hotel[];
@@ -35,6 +46,54 @@ export default function MapClientComponent({ filteredRooms, hotels }: MapClientC
     const mapRef = useRef<HTMLDivElement>(null);
     const mapInstanceRef = useRef<any>(null);
     const markersRef = useRef<any[]>([]);
+    const [geocodingCache, setGeocodingCache] = useState<GeocodingCache>({});
+    const [isGeocoding, setIsGeocoding] = useState<boolean>(false);
+
+    // Fonction pour géocoder une adresse
+    const geocodeAddress = async (hotel: Hotel): Promise<GeoCoordinates> => {
+        const cacheKey = `${hotel.address}, ${hotel.city}, ${hotel.zipCode}`;
+
+        // Vérifier si l'adresse est déjà dans le cache
+        if (geocodingCache[cacheKey]) {
+            return geocodingCache[cacheKey];
+        }
+
+        try {
+            // Formater l'adresse pour l'URL
+            const query = encodeURIComponent(`${hotel.address}, ${hotel.zipCode} ${hotel.city}`);
+            const url = `https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=1`;
+
+            // Ajouter un délai pour respecter les limites de l'API (max 1 requête par seconde)
+            await new Promise(resolve => setTimeout(resolve, 1000));
+
+            const response = await fetch(url);
+            const data = await response.json();
+
+            if (data && data.length > 0) {
+                const coordinates = {
+                    lat: parseFloat(data[0].lat),
+                    lng: parseFloat(data[0].lon)
+                };
+
+                // Mettre à jour le cache
+                setGeocodingCache(prev => ({
+                    ...prev,
+                    [cacheKey]: coordinates
+                }));
+
+                return coordinates;
+            } else {
+                throw new Error("Adresse non trouvée");
+            }
+        } catch (error) {
+            console.error(`Erreur de géocodage pour ${hotel.name}:`, error);
+            // Position par défaut (Paris) avec un léger offset aléatoire
+            return {
+                lat: 48.8566 + (Math.random() * 0.02 - 0.01),
+                lng: 2.3522 + (Math.random() * 0.02 - 0.01)
+            };
+        }
+    };
 
     // Effet d'initialisation de la carte - exécuté une seule fois
     useEffect(() => {
@@ -65,8 +124,6 @@ export default function MapClientComponent({ filteredRooms, hotels }: MapClientC
         // Stocker l'instance de map dans la référence
         mapInstanceRef.current = map;
 
-        // Pas besoin de nettoyer les marqueurs ici car aucun n'est encore créé
-
         // Nettoyage à la destruction du composant
         return () => {
             if (mapInstanceRef.current) {
@@ -78,13 +135,15 @@ export default function MapClientComponent({ filteredRooms, hotels }: MapClientC
 
     // Effet de mise à jour des marqueurs - exécuté quand filteredRooms ou hotels change
     useEffect(() => {
-        if (!mapInstanceRef.current || hotels.length === 0) return;
+        if (!mapInstanceRef.current || hotels.length === 0 || isGeocoding) return;
 
         const L = require('leaflet');
         const map = mapInstanceRef.current;
 
         // Fonction pour mettre à jour les marqueurs
-        function updateMarkers() {
+        async function updateMarkers() {
+            setIsGeocoding(true);
+
             // Supprimer les marqueurs existants
             markersRef.current.forEach(marker => marker.remove());
             markersRef.current = [];
@@ -98,16 +157,16 @@ export default function MapClientComponent({ filteredRooms, hotels }: MapClientC
             if (relevantHotels.length > 0) {
                 const bounds = L.latLngBounds([]);
 
-                relevantHotels.forEach((hotel, index) => {
+                // Traiter chaque hôtel
+                for (const hotel of relevantHotels) {
                     // Obtenir toutes les chambres pour cet hôtel qui sont dans la liste filtrée
                     const hotelRooms = filteredRooms.filter(room => room.hotelId === hotel.id);
 
                     // Obtenir la chambre avec le prix le plus bas pour cet hôtel
                     const minPrice = Math.min(...hotelRooms.map(room => room.price));
 
-                    // Créer des positions pseudo-aléatoires basées sur Paris
-                    const lat = 48.8566 + (index * 0.005) * (Math.random() > 0.5 ? 1 : -1);
-                    const lng = 2.3522 + (index * 0.005) * (Math.random() > 0.5 ? 1 : -1);
+                    // Obtenir les coordonnées de l'hôtel par géocodage
+                    const coordinates = await geocodeAddress(hotel);
 
                     // Créer un marqueur personnalisé avec icône de prix
                     const priceIcon = L.divIcon({
@@ -118,7 +177,7 @@ export default function MapClientComponent({ filteredRooms, hotels }: MapClientC
                     });
 
                     // Ajouter le marqueur à la carte
-                    const marker = L.marker([lat, lng], { icon: priceIcon }).addTo(map);
+                    const marker = L.marker([coordinates.lat, coordinates.lng], { icon: priceIcon }).addTo(map);
                     markersRef.current.push(marker);
 
                     // Créer une popup avec les détails de l'hôtel
@@ -140,8 +199,8 @@ export default function MapClientComponent({ filteredRooms, hotels }: MapClientC
                     marker.bindPopup(popupContent);
 
                     // Étendre les limites pour inclure ce marqueur
-                    bounds.extend([lat, lng]);
-                });
+                    bounds.extend([coordinates.lat, coordinates.lng]);
+                }
 
                 // Ajuster la vue de la carte pour afficher tous les marqueurs
                 if (bounds.isValid()) {
@@ -157,6 +216,8 @@ export default function MapClientComponent({ filteredRooms, hotels }: MapClientC
 
                 console.log("Map updated with markers");
             }
+
+            setIsGeocoding(false);
         }
 
         // Mettre à jour les marqueurs
@@ -167,6 +228,13 @@ export default function MapClientComponent({ filteredRooms, hotels }: MapClientC
     return (
         <>
             <div ref={mapRef} className="h-full w-full" />
+            {isGeocoding && (
+                <div className="absolute inset-0 bg-white bg-opacity-70 flex items-center justify-center">
+                    <div className="bg-white p-4 rounded-lg shadow-md">
+                        <p className="text-gray-600">Géocodage des adresses en cours...</p>
+                    </div>
+                </div>
+            )}
             <style jsx global>{`
                 .custom-price-marker {
                     transition: transform 0.2s ease;
