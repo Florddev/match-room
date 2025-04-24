@@ -44,6 +44,7 @@ export type Room = {
     createdAt: string
     updatedAt: string
     types: RoomTypeRelation[]
+    hotel: Hotel
 }
 
 export type RoomType = {

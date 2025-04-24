@@ -1,16 +1,61 @@
+"use client"
+
 import Link from "next/link"
 import { Edit, Star, Tag, Trash, Hotel, Plus } from "lucide-react"
+import { useState } from "react"
+import { useRouter } from "next/navigation"
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { toast } from "sonner" // Assurez-vous d'avoir ce package ou utilisez un autre système de notification
 
 interface RoomsListProps {
   rooms: any[]
   hotelId: string
 }
 
-export function RoomsList({ rooms, hotelId }: RoomsListProps) {
+export function RoomsList({ rooms: initialRooms, hotelId }: RoomsListProps) {
+  const [rooms, setRooms] = useState(initialRooms)
+  const [isDeleting, setIsDeleting] = useState<string | null>(null)
+  const router = useRouter()
+
+  const deleteRoom = async (roomId: string) => {
+    if (isDeleting) return
+    
+    setIsDeleting(roomId)
+    
+    try {
+      const response = await fetch(`/api/dashboard/hotels/${hotelId}/rooms/${roomId}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+      
+      if (!response.ok) {
+        throw new Error("Failed to delete room")
+      }
+      
+      // Mettre à jour l'état local pour retirer la chambre
+      setRooms(rooms.filter(room => room.id !== roomId))
+      
+      toast("Room deleted", {
+        description: "The room has been successfully deleted.",
+      })
+      
+      // Rafraîchir la page pour mettre à jour les données
+      router.refresh()
+    } catch (error) {
+      console.error("Error deleting room:", error)
+      toast("Error", {
+        description: "Failed to delete the room. Please try again.",
+      })
+    } finally {
+      setIsDeleting(null)
+    }
+  }
+
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
       {rooms.map((room) => (
@@ -28,7 +73,7 @@ export function RoomsList({ rooms, hotelId }: RoomsListProps) {
           <CardContent className="pb-2">
             <p className="text-sm text-muted-foreground line-clamp-2 mb-2">{room.content}</p>
             <div className="flex flex-wrap gap-1">
-              {room.categories.split(",").map((category: string, i: number) => (
+              {room.categories?.split(",").map((category: string, i: number) => (
                 <Badge key={i} variant="outline" className="text-xs">
                   {category.trim()}
                 </Badge>
@@ -53,11 +98,19 @@ export function RoomsList({ rooms, hotelId }: RoomsListProps) {
                   <Edit className="h-4 w-4" />
                 </Button>
               </Link>
-              <form action={`/api/rooms/${room.id}/delete`}>
-                <Button size="sm" variant="ghost" className="text-destructive">
+              <Button 
+                size="sm" 
+                variant="ghost" 
+                className="text-destructive"
+                onClick={() => deleteRoom(room.id)}
+                disabled={isDeleting === room.id}
+              >
+                {isDeleting === room.id ? (
+                  <span className="animate-spin">...</span>
+                ) : (
                   <Trash className="h-4 w-4" />
-                </Button>
-              </form>
+                )}
+              </Button>
             </div>
           </CardFooter>
         </Card>
