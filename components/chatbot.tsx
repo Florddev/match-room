@@ -1,39 +1,39 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
-import Image from "next/image";
-import {
-	MessageCircle,
-	X,
-	Send,
-	Calendar,
-	Sparkles,
-	Star,
-	Check,
-	ArrowRight,
-	Maximize2,
-	Minimize2,
-	MapPin,
-	Mountain,
-	Palmtree,
-	Building,
-	Users,
-	Dumbbell,
-	Briefcase,
-	Wifi,
-	Waves,
-	Utensils,
-	Car,
-	Sunset,
-	Coffee,
-	DollarSign,
-	RefreshCw,
-} from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+import {
+	ArrowRight,
+	Briefcase,
+	Building,
+	Calendar,
+	Car,
+	Check,
+	Coffee,
+	DollarSign,
+	Dumbbell,
+	MapPin,
+	Maximize2,
+	MessageCircle,
+	Minimize2,
+	Mountain,
+	Palmtree,
+	RefreshCw,
+	Send,
+	Sparkles,
+	Star,
+	Sunset,
+	Users,
+	Utensils,
+	Waves,
+	Wifi,
+	X,
+} from "lucide-react";
+import Image from "next/image";
+import React, { useEffect, useRef, useState } from "react";
 
 // Types
 type ChatMessageType =
@@ -318,7 +318,7 @@ const HotelChatbot: React.FC<HotelChatbotProps> = ({
 						: [...prev.essentials, optionId];
 					return { ...prev, essentials: newEssentials };
 				});
-				return; // Don't advance to next step for multi-select until user clicks continue
+				return;
 			} else {
 				setUserProfile((prev) => ({ ...prev, essentials: [optionId] }));
 			}
@@ -1037,7 +1037,7 @@ const HotelChatbot: React.FC<HotelChatbotProps> = ({
 									</div>
 								</div>
 							))}
-							{message.properties?.length > 0 && (
+							{message.properties?.length === 0 && (
 								<Button
 									variant="outline"
 									className="w-full rounded-xl flex items-center justify-center"

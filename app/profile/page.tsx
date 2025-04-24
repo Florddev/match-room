@@ -1,6 +1,5 @@
 "use client"
 
-import Navbar from "@/components/Navbar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAuth } from "@/lib/auth-context"
@@ -13,7 +12,6 @@ export default function ProfilePage() {
     if (isLoading) {
         return (
             <>
-                <Navbar />
                 <div className="flex min-h-screen items-center justify-center">
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 </div>
@@ -24,7 +22,6 @@ export default function ProfilePage() {
     if (!user) {
         return (
             <>
-                <Navbar />
                 <div className="flex min-h-screen items-center justify-center">
                     <Card>
                         <CardHeader>
@@ -44,7 +41,6 @@ export default function ProfilePage() {
 
     return (
         <>
-            <Navbar />
             <div className="container mx-auto py-8">
                 <Card className="max-w-md mx-auto">
                     <CardHeader>
