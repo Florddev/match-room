@@ -57,7 +57,6 @@ export default function LoginPage() {
                 throw new Error(data.message || "Une erreur s'est produite lors de la connexion")
             }
 
-            // Redirection après connexion réussie
             router.push("/")
             router.refresh()
         } catch (err) {
