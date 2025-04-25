@@ -59,7 +59,7 @@ export async function DELETE(
     try {
       const userId = user.id;
       const bookingId = params.id;
-      
+     
       // Vérifier que la réservation existe et appartient à l'utilisateur
       const booking = await prisma.booking.findFirst({
         where: {
@@ -67,19 +67,28 @@ export async function DELETE(
           userId: userId
         }
       });
-      
+     
       if (!booking) {
         return NextResponse.json(
           { error: "Réservation non trouvée ou vous n'êtes pas autorisé à y accéder" },
           { status: 404 }
         );
       }
-      
-      // Vérifier si l'annulation est possible (par exemple, pas trop proche de la date de début)
+     
+      // Vérifier si l'annulation est possible
+      // 1. Vérifier le statut de paiement
+      if (booking.status === 'PAID') {
+        return NextResponse.json(
+          { error: "Vous devez contacter le support pour annuler une réservation déjà payée" },
+          { status: 400 }
+        );
+      }
+     
+      // Vérifier les délais d'annulation
       const today = new Date();
       const startDate = new Date(booking.startDate);
       const daysDifference = Math.ceil((startDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-      
+     
       // Si la réservation commence dans moins de 48 heures, l'annulation n'est pas possible
       if (daysDifference < 2) {
         return NextResponse.json(
@@ -87,15 +96,21 @@ export async function DELETE(
           { status: 400 }
         );
       }
-      
-      // Supprimer la réservation
-      await prisma.booking.delete({
+     
+      // Mettre à jour le statut de la réservation plutôt que de la supprimer
+      const updatedBooking = await prisma.booking.update({
         where: {
           id: bookingId
+        },
+        data: {
+          status: 'CANCELLED'
         }
       });
-      
-      return NextResponse.json({ success: true });
+     
+      return NextResponse.json({ 
+        success: true,
+        booking: updatedBooking 
+      });
     } catch (error) {
       console.error("Erreur lors de l'annulation de la réservation:", error);
       return NextResponse.json(
