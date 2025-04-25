@@ -8,7 +8,6 @@ export async function POST(request: NextRequest) {
   try {
     const userData = await request.json()
 
-    // Vérifier si l'email existe déjà
     const existingUser = await prisma.user.findUnique({
       where: { email: userData.email },
     })
@@ -17,54 +16,70 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: "Cet email est déjà utilisé" }, { status: 400 })
     }
 
-    // Hacher le mot de passe
     const hashedPassword = await bcrypt.hash(userData.password, 10)
 
-    // Trouver le rôle "USER" par défaut
+    const roleName = userData.isProfessional && userData.siret ? "MANAGER" : "CLIENT"
+    
     const userRole = await prisma.role.findFirst({
-      where: { name: "USER" },
+      where: { name: roleName },
     })
 
     if (!userRole) {
-      return Response.json({ error: "Rôle utilisateur non trouvé" }, { status: 500 })
+      return Response.json({ error: `Rôle ${roleName} non trouvé` }, { status: 500 })
     }
 
-    // Créer l'utilisateur
+    const {
+      firstname,
+      lastname,
+      email,
+      address,
+      city,
+      zipCode,
+      phone,
+      siret,
+      isProfessional,
+      ...restUserData
+    } = userData;
+
     const user = await prisma.user.create({
       data: {
-        ...userData,
+        firstname,
+        lastname,
+        email,
         password: hashedPassword,
-        roleId: userRole.id, // Assigner le rôle USER par défaut
+        address,
+        city,
+        zipCode,
+        phone,
+        siret: siret || null,
+        roleId: userRole.id,
       },
       include: {
-        role: true, // Inclure le rôle dans la réponse
+        role: true,
       },
     })
 
-    // Créer un token JWT avec le rôle inclus dans le payload
     const JWT_SECRET_KEY = process.env.JWT_SECRET_KEY || "votre-clé-secrète-super-sécurisée"
     const token = await new SignJWT({
       id: user.id,
       email: user.email,
-      role: { name: user.role.name }, // Inclure le rôle dans le token
+      role: { name: user.role.name },
     })
       .setProtectedHeader({ alg: "HS256" })
       .setIssuedAt()
       .setExpirationTime("24h")
       .sign(new TextEncoder().encode(JWT_SECRET_KEY))
 
-    // Définir le cookie
-    const cookiesInstance = await cookies()
+    const cookiesInstance = cookies()
     cookiesInstance.set({
       name: "auth-token",
       value: token,
       httpOnly: true,
       path: "/",
       secure: process.env.NODE_ENV === "production",
-      maxAge: 60 * 60 * 24, // 24 heures
+      maxAge: 60 * 60 * 24,
     })
 
-    // Retourner les informations de l'utilisateur sans le mot de passe
     const { password: _, ...userWithoutPassword } = user
     return Response.json({ user: userWithoutPassword })
   } catch (error) {

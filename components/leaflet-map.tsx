@@ -1,8 +1,8 @@
 "use client"
 
+import { Loader2 } from "lucide-react"
 import dynamic from "next/dynamic"
 import { useEffect, useState } from "react"
-import { Loader2 } from "lucide-react"
 
 // Types pour les chambres et hôtels
 type Hotel = {
@@ -25,10 +25,13 @@ type Room = {
   categories: string
   tags: string
   hotelId: string
+  hotel?: Hotel // Relation optionnelle vers l'hôtel parent
 }
 
 interface LeafletMapProps {
-  filteredRooms: Room[]
+  // Accepte soit des rooms, soit des hotels, soit les deux
+  filteredRooms?: Room[]
+  filteredHotels?: Hotel[]
 }
 
 // Composant qui sera chargé seulement côté client
@@ -44,15 +47,22 @@ const MapComponent = dynamic(() => import("./map-client"), {
   ),
 })
 
-export default function LeafletMap({ filteredRooms }: LeafletMapProps) {
+export default function LeafletMap({ filteredRooms, filteredHotels }: LeafletMapProps) {
   const [hotels, setHotels] = useState<Hotel[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
-  // Fetch hotels data
+  // Fetch hotels data if needed
   useEffect(() => {
     let isMounted = true
 
     async function fetchHotels() {
+      // Si des hôtels sont déjà fournis via les props, pas besoin de les récupérer
+      if (filteredHotels && filteredHotels.length > 0) {
+        setHotels(filteredHotels)
+        setIsLoading(false)
+        return
+      }
+
       try {
         console.log("Fetching hotels data...")
         const res = await fetch("/api/hotels", {
@@ -85,7 +95,11 @@ export default function LeafletMap({ filteredRooms }: LeafletMapProps) {
     return () => {
       isMounted = false
     }
-  }, [])
+  }, [filteredHotels])
+
+  // Calcule combien d'éléments seront affichés sur la carte
+  const roomsCount = filteredRooms?.length || 0
+  const hotelsCount = filteredHotels?.length || hotels.length
 
   return (
     <div className="h-full w-full relative">
@@ -98,10 +112,15 @@ export default function LeafletMap({ filteredRooms }: LeafletMapProps) {
         </div>
       ) : (
         <>
-          <MapComponent filteredRooms={filteredRooms} hotels={hotels} />
+          <MapComponent
+            filteredRooms={filteredRooms || []}
+            hotels={filteredHotels || hotels}
+          />
           <div className="absolute top-4 left-4 z-[1000] bg-white rounded-lg shadow-md p-3 text-sm">
-            <p className="font-medium">{filteredRooms.length} chambres trouvées</p>
-            <p className="text-gray-500 text-xs">{hotels.length} hôtels disponibles</p>
+            {roomsCount > 0 && (
+              <p className="font-medium">{roomsCount} chambre{roomsCount > 1 ? 's' : ''} trouvée{roomsCount > 1 ? 's' : ''}</p>
+            )}
+            <p className="text-gray-500 text-xs">{hotelsCount} hôtel{hotelsCount > 1 ? 's' : ''} disponible{hotelsCount > 1 ? 's' : ''}</p>
           </div>
         </>
       )}

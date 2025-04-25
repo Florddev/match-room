@@ -1,14 +1,13 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
-import type React from "react"
-import { ArrowUpDown, Bed, Check, ChevronDown, Filter, Heart, MapPin, Search, Star, Tag, X } from "lucide-react"
-import Link from "next/link"
-import { MapIcon, List } from "lucide-react"
 import LeafletMap from "@/components/leaflet-map"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
-import { Badge } from "@/components/ui/badge"
+import { ArrowUpDown, Bed, Check, ChevronDown, Crown, Droplets, Filter, Heart, Home, List, MapPin, PiggyBank, Search, Star, Tag, Users, X } from "lucide-react"
+import Link from "next/link"
+import type React from "react"
+import { useEffect, useRef, useState } from "react"
 
 type Room = {
   id: string
@@ -108,14 +107,14 @@ export default function RoomsPage() {
 
   // Types de chambres pour le filtrage rapide
   const roomTypes = [
-    { id: "all", name: "Tous", icon: "🏠" },
-    { id: "single", name: "Chambre simple", icon: "🛏️" },
-    { id: "suite", name: "Suite", icon: "✨" },
-    { id: "family", name: "Familiale", icon: "👨‍👩‍👧‍👦" },
-    { id: "sea", name: "Vue mer", icon: "🌊" },
-    { id: "eco", name: "Économique", icon: "💰" },
-    { id: "luxury", name: "Luxe", icon: "👑" },
-  ]
+    { id: "all", name: "Tous", icon: <Home className="h-5 w-5" /> },
+    { id: "single", name: "Chambre simple", icon: <Bed className="h-5 w-5" /> },
+    { id: "suite", name: "Suite", icon: <Star className="h-5 w-5" /> },
+    { id: "family", name: "Familiale", icon: <Users className="h-5 w-5" /> },
+    { id: "sea", name: "Vue mer", icon: <Droplets className="h-5 w-5" /> },
+    { id: "eco", name: "Économique", icon: <PiggyBank className="h-5 w-5" /> },
+    { id: "luxury", name: "Luxe", icon: <Crown className="h-5 w-5" /> },
+  ];
 
   // Fermer les dropdowns lors d'un clic à l'extérieur
   useEffect(() => {
@@ -412,28 +411,9 @@ export default function RoomsPage() {
   return (
     <div className="min-h-screen bg-white">
       {/* Barre de recherche et filtres en haut */}
-      <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-4 py-4">
-        <div className="max-w-7xl mx-auto">
+      <div className="sticky top-0 z-10 bg-white border-b border-gray-200">
+        <div className="container mx-auto px-4 py-4">
           <div className="flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <h1 className="text-xl font-semibold">Découvrez nos chambres</h1>
-
-              {/* Boutons de basculement carte/liste sur mobile */}
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setShowMap(false)}
-                  className={`p-2 rounded-full ${!showMap ? "bg-blue-100 text-blue-700" : "bg-white"}`}
-                >
-                  <List size={20} />
-                </button>
-                <button
-                  onClick={() => setShowMap(true)}
-                  className={`p-2 rounded-full ${showMap ? "bg-blue-100 text-blue-700" : "bg-white"}`}
-                >
-                  <MapIcon size={20} />
-                </button>
-              </div>
-            </div>
 
             <div className="flex flex-col sm:flex-row gap-3">
               {/* Barre de recherche */}
@@ -482,9 +462,8 @@ export default function RoomsPage() {
                             setSortBy(option.value)
                             setShowSortOptions(false)
                           }}
-                          className={`flex items-center w-full px-4 py-2 text-sm hover:bg-gray-100 ${
-                            sortBy === option.value ? "bg-blue-50 text-blue-700 font-medium" : "text-gray-700"
-                          }`}
+                          className={`flex items-center w-full px-4 py-2 text-sm hover:bg-gray-100 ${sortBy === option.value ? "bg-blue-50 text-blue-700 font-medium" : "text-gray-700"
+                            }`}
                         >
                           {option.icon && <span className="mr-2">{option.icon}</span>}
                           {option.label}
@@ -508,13 +487,13 @@ export default function RoomsPage() {
                   selectedTags.length > 0 ||
                   priceRange[0] > 0 ||
                   priceRange[1] < maxPrice) && (
-                  <Badge variant="secondary" className="ml-1 bg-blue-100 text-blue-800 hover:bg-blue-200">
-                    {(minRate > 0 ? 1 : 0) +
-                      selectedCategories.length +
-                      selectedTags.length +
-                      (priceRange[0] > 0 || priceRange[1] < maxPrice ? 1 : 0)}
-                  </Badge>
-                )}
+                    <Badge variant="secondary" className="ml-1 bg-blue-100 text-blue-800 hover:bg-blue-200">
+                      {(minRate > 0 ? 1 : 0) +
+                        selectedCategories.length +
+                        selectedTags.length +
+                        (priceRange[0] > 0 || priceRange[1] < maxPrice ? 1 : 0)}
+                    </Badge>
+                  )}
               </button>
             </div>
 
@@ -525,20 +504,15 @@ export default function RoomsPage() {
                   <button
                     key={type.id}
                     onClick={() => toggleRoomType(type.id)}
-                    className={`flex flex-col items-center min-w-[80px] focus:outline-none group ${
-                      selectedRoomTypes.includes(type.id) ? "text-blue-700" : "text-gray-600 hover:text-gray-900"
-                    }`}
-                  >
-                    <div
-                      className={`w-12 h-12 rounded-full flex items-center justify-center mb-2 ${
-                        selectedRoomTypes.includes(type.id)
-                          ? "bg-blue-100 ring-2 ring-blue-500"
-                          : "bg-gray-100 group-hover:bg-gray-200"
+                    className={`flex items-center gap-3 px-3 py-2 rounded-md font-medium focus:outline-none ${selectedRoomTypes.includes(type.id)
+                      ? "text-blue-700 bg-blue-50"
+                      : "text-gray-600 hover:bg-gray-50"
                       }`}
-                    >
-                      <span className="text-xl">{type.icon}</span>
+                  >
+                    <div className="text-current">
+                      {type.icon}
                     </div>
-                    <span className="text-xs font-medium">{type.name}</span>
+                    <span className="font-medium">{type.name}</span>
                   </button>
                 ))}
               </div>
@@ -639,16 +613,15 @@ export default function RoomsPage() {
                               .map((category) => (
                                 <div
                                   key={category}
-                                  className={`p-3 hover:bg-gray-100 cursor-pointer ${
-                                    selectedCategories.includes(category) ? "bg-blue-50" : ""
-                                  }`}
+                                  className={`p-3 hover:bg-gray-100 cursor-pointer ${selectedCategories.includes(category) ? "bg-blue-50" : ""
+                                    }`}
                                   onClick={() => handleCategoryChange(category)}
                                 >
                                   <div className="flex items-center">
                                     <input
                                       type="checkbox"
                                       checked={selectedCategories.includes(category)}
-                                      onChange={() => {}}
+                                      onChange={() => { }}
                                       className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500"
                                     />
                                     <span>{category}</span>
@@ -658,8 +631,8 @@ export default function RoomsPage() {
                             {uniqueCategories.filter((category) =>
                               category.toLowerCase().includes(categorySearchTerm.toLowerCase()),
                             ).length === 0 && (
-                              <div className="p-3 text-gray-500 text-center">Aucune catégorie trouvée</div>
-                            )}
+                                <div className="p-3 text-gray-500 text-center">Aucune catégorie trouvée</div>
+                              )}
                           </div>
                         </div>
                       )}
@@ -710,16 +683,15 @@ export default function RoomsPage() {
                               .map((tag) => (
                                 <div
                                   key={tag}
-                                  className={`p-3 hover:bg-gray-100 cursor-pointer ${
-                                    selectedTags.includes(tag) ? "bg-blue-50" : ""
-                                  }`}
+                                  className={`p-3 hover:bg-gray-100 cursor-pointer ${selectedTags.includes(tag) ? "bg-blue-50" : ""
+                                    }`}
                                   onClick={() => handleTagChange(tag)}
                                 >
                                   <div className="flex items-center">
                                     <input
                                       type="checkbox"
                                       checked={selectedTags.includes(tag)}
-                                      onChange={() => {}}
+                                      onChange={() => { }}
                                       className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500"
                                     />
                                     <span>{tag}</span>
@@ -741,78 +713,78 @@ export default function RoomsPage() {
                   selectedTags.length > 0 ||
                   priceRange[0] > 0 ||
                   priceRange[1] < maxPrice) && (
-                  <div className="mt-6 flex flex-wrap gap-2">
-                    <div className="text-sm text-gray-700 mr-2 pt-1">Filtres actifs:</div>
+                    <div className="mt-6 flex flex-wrap gap-2">
+                      <div className="text-sm text-gray-700 mr-2 pt-1">Filtres actifs:</div>
 
-                    {minRate > 0 && (
-                      <Badge
-                        variant="outline"
-                        className="flex items-center gap-1 bg-blue-50 text-blue-700 border-blue-200"
-                      >
-                        Note ≥ {minRate}
-                        <button onClick={() => setMinRate(0)} className="ml-1 hover:bg-blue-100 rounded-full p-0.5">
-                          <X className="h-3 w-3" />
-                        </button>
-                      </Badge>
-                    )}
-
-                    {(priceRange[0] > 0 || priceRange[1] < maxPrice) && (
-                      <Badge
-                        variant="outline"
-                        className="flex items-center gap-1 bg-blue-50 text-blue-700 border-blue-200"
-                      >
-                        Prix: {priceRange[0]}€ - {priceRange[1]}€
-                        <button
-                          onClick={() => setPriceRange([0, maxPrice])}
-                          className="ml-1 hover:bg-blue-100 rounded-full p-0.5"
+                      {minRate > 0 && (
+                        <Badge
+                          variant="outline"
+                          className="flex items-center gap-1 bg-blue-50 text-blue-700 border-blue-200"
                         >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </Badge>
-                    )}
+                          Note ≥ {minRate}
+                          <button onClick={() => setMinRate(0)} className="ml-1 hover:bg-blue-100 rounded-full p-0.5">
+                            <X className="h-3 w-3" />
+                          </button>
+                        </Badge>
+                      )}
 
-                    {selectedCategories.map((category) => (
-                      <Badge
-                        key={category}
-                        variant="outline"
-                        className="flex items-center gap-1 bg-blue-50 text-blue-700 border-blue-200"
-                      >
-                        {category}
-                        <button
-                          onClick={() => handleCategoryChange(category)}
-                          className="ml-1 hover:bg-blue-100 rounded-full p-0.5"
+                      {(priceRange[0] > 0 || priceRange[1] < maxPrice) && (
+                        <Badge
+                          variant="outline"
+                          className="flex items-center gap-1 bg-blue-50 text-blue-700 border-blue-200"
                         >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </Badge>
-                    ))}
+                          Prix: {priceRange[0]}€ - {priceRange[1]}€
+                          <button
+                            onClick={() => setPriceRange([0, maxPrice])}
+                            className="ml-1 hover:bg-blue-100 rounded-full p-0.5"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </Badge>
+                      )}
 
-                    {selectedTags.map((tag) => (
-                      <Badge
-                        key={tag}
-                        variant="outline"
-                        className="flex items-center gap-1 bg-blue-50 text-blue-700 border-blue-200"
-                      >
-                        {tag}
-                        <button
-                          onClick={() => handleTagChange(tag)}
-                          className="ml-1 hover:bg-blue-100 rounded-full p-0.5"
+                      {selectedCategories.map((category) => (
+                        <Badge
+                          key={category}
+                          variant="outline"
+                          className="flex items-center gap-1 bg-blue-50 text-blue-700 border-blue-200"
                         >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </Badge>
-                    ))}
+                          {category}
+                          <button
+                            onClick={() => handleCategoryChange(category)}
+                            className="ml-1 hover:bg-blue-100 rounded-full p-0.5"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </Badge>
+                      ))}
 
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={resetFilters}
-                      className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
-                    >
-                      Effacer tout
-                    </Button>
-                  </div>
-                )}
+                      {selectedTags.map((tag) => (
+                        <Badge
+                          key={tag}
+                          variant="outline"
+                          className="flex items-center gap-1 bg-blue-50 text-blue-700 border-blue-200"
+                        >
+                          {tag}
+                          <button
+                            onClick={() => handleTagChange(tag)}
+                            className="ml-1 hover:bg-blue-100 rounded-full p-0.5"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </Badge>
+                      ))}
+
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={resetFilters}
+                        className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+                      >
+                        Effacer tout
+                      </Button>
+                    </div>
+                  )}
               </div>
             )}
 
@@ -826,7 +798,7 @@ export default function RoomsPage() {
       </div>
 
       {/* Contenu principal - Carte et liste */}
-      <div className="max-w-7xl mx-auto px-4 py-6">
+      <div className="container mx-auto px-4 py-6">
         {isLoading ? (
           <div className="text-center py-10">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600 mx-auto"></div>
@@ -849,8 +821,8 @@ export default function RoomsPage() {
         ) : (
           <div className="flex flex-col md:flex-row gap-6">
             {/* Liste des chambres - Visible uniquement si showMap est false */}
-            <div className={`${showMap ? "hidden md:block" : "block"} md:w-1/2 lg:w-3/5`}>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className={`${showMap ? "hidden md:block" : "block"} md:w-3/5 lg:w-2/3`}>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredRooms.map((room) => (
                   <Link
                     href={`/room/${room.id}`}
@@ -868,9 +840,8 @@ export default function RoomsPage() {
                       {/* Favorite button */}
                       <button onClick={(e) => toggleFavorite(e, room.id)} className="absolute top-3 right-3 z-10">
                         <Heart
-                          className={`h-6 w-6 ${
-                            favorites.has(room.id) ? "fill-red-500 text-red-500" : "text-white stroke-2 drop-shadow-md"
-                          }`}
+                          className={`h-6 w-6 ${favorites.has(room.id) ? "fill-red-500 text-red-500" : "text-white stroke-2 drop-shadow-md"
+                            }`}
                         />
                       </button>
 
@@ -948,11 +919,9 @@ export default function RoomsPage() {
             </div>
 
             {/* Carte - Visible uniquement si showMap est true */}
-            <div
-              className={`${!showMap ? "hidden md:block" : "block"} md:w-1/2 lg:w-2/5 h-[calc(100vh-200px)] sticky top-[100px]`}
-            >
+            <div className={`${!showMap ? "hidden md:block" : "block"} md:w-2/5 lg:w-1/3 h-[calc(100vh-200px)] sticky top-[100px]`}>
               <div className="h-full rounded-xl overflow-hidden border border-gray-200 shadow-md">
-                <LeafletMap filteredRooms={filteredRooms} />
+                <LeafletMap filteredRooms={filteredRooms as any} />
               </div>
 
               {/* Bouton pour afficher la liste sur mobile quand la carte est visible */}

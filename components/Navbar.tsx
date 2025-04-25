@@ -1,10 +1,8 @@
 "use client"
 
-import type React from "react"
 import { useAuth } from "@/lib/auth-context"
 import { useSearch } from "@/lib/search-context"
 import {
-  Bell,
   Building2,
   Calendar,
   ChevronDown,
@@ -15,13 +13,13 @@ import {
   LogOut,
   Menu,
   MessageSquare,
-  SearchIcon,
   Settings,
   User,
-  UserPlus,
+  UserPlus
 } from "lucide-react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
+import type React from "react"
 import { useEffect, useRef, useState } from "react"
 
 export default function Navbar() {
@@ -31,6 +29,7 @@ export default function Navbar() {
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [showLanguageMenu, setShowLanguageMenu] = useState(false)
   const router = useRouter()
+  const pathname = usePathname() // Ajout pour détecter le chemin actuel
 
   const userMenuRef = useRef<HTMLDivElement>(null)
   const languageMenuRef = useRef<HTMLDivElement>(null)
@@ -57,57 +56,53 @@ export default function Navbar() {
     router.push(`/rooms?search=${searchTerm}`)
   }
 
+  // Fonction pour déterminer si un lien est actif
+  const isActive = (path: string) => {
+    return pathname?.startsWith(path)
+  }
+
+  // Classes pour les liens
+  const defaultLinkClasses = "px-3 py-2 rounded-md text-sm font-medium flex items-center"
+  const activeLinkClasses = `${defaultLinkClasses} bg-blue-100 text-blue-800`
+  const inactiveLinkClasses = `${defaultLinkClasses} hover:bg-gray-100`
+
+  // Classes pour les liens mobiles
+  const defaultMobileLinkClasses = "flex items-center px-4 py-2 text-sm"
+  const activeMobileLinkClasses = `${defaultMobileLinkClasses} bg-blue-100 text-blue-800`
+  const inactiveMobileLinkClasses = `${defaultMobileLinkClasses} hover:bg-gray-100`
+
   return (
     <header className="sticky top-0 z-50 bg-white shadow-sm">
       <div className="container mx-auto px-4 py-3">
         <div className="flex items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center">
-            <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-2 rounded-lg mr-2">
-              <Building2 className="h-5 w-5" />
+          <Link href="/">
+            <div>
+              <img
+                src="/logo.svg"
+                alt="MatchRoom Logo"
+                className="h-12 w-auto block object-contain"
+              />
             </div>
-            <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              MatchRoom
-            </span>
           </Link>
 
           {/* Navigation principale - Desktop */}
           <nav className="hidden md:flex items-center space-x-1">
             <Link
               href="/rooms"
-              className="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 flex items-center"
+              className={isActive('/rooms') ? activeLinkClasses : inactiveLinkClasses}
             >
               <Home className="h-4 w-4 mr-1" />
               Chambres
             </Link>
             <Link
               href="/hotels"
-              className="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 flex items-center"
+              className={isActive('/hotels') ? activeLinkClasses : inactiveLinkClasses}
             >
               <Building2 className="h-4 w-4 mr-1" />
               Hôtels
             </Link>
           </nav>
-
-          {/* Barre de recherche - Desktop
-          <div className="hidden md:block max-w-md">
-            <form
-              onSubmit={handleSearch}
-              className="flex items-center border border-gray-300 rounded-full overflow-hidden"
-            >
-              <input
-                type="text"
-                placeholder="Rechercher un hôtel ou une chambre..."
-                className="w-full px-4 py-2 outline-none text-sm"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-              <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white p-2">
-                <SearchIcon className="h-4 w-4" />
-              </button>
-            </form>
-          </div> 
-          */}
 
           {/* Actions utilisateur - Desktop */}
           <div className="hidden md:flex items-center space-x-2">
@@ -137,7 +132,7 @@ export default function Navbar() {
             </div>
 
             {/* Aide */}
-            <Link href="/help" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100">
+            <Link href="/" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100">
               <HelpCircle className="h-4 w-4" />
             </Link>
 
@@ -212,7 +207,7 @@ export default function Navbar() {
                         Inscription
                       </Link>
                       <div className="border-t border-gray-100 mt-1"></div>
-                      <Link href="/help" className="flex items-center px-4 py-2 text-sm hover:bg-gray-100">
+                      <Link href="/" className="flex items-center px-4 py-2 text-sm hover:bg-gray-100">
                         <HelpCircle className="h-4 w-4 mr-3 text-gray-500" />
                         Centre d'aide
                       </Link>
@@ -231,33 +226,13 @@ export default function Navbar() {
           </div>
         </div>
 
-        {/* Barre de recherche - Mobile 
-        <div className="md:hidden mt-3">
-          <form
-            onSubmit={handleSearch}
-            className="flex items-center border border-gray-300 rounded-full overflow-hidden"
-          >
-            <input
-              type="text"
-              placeholder="Rechercher..."
-              className="w-full px-4 py-2 outline-none text-sm"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-            <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white p-2">
-              <SearchIcon className="h-4 w-4" />
-            </button>
-          </form>
-        </div>
-        */}
-
         {/* Menu mobile déplié */}
         {showMobileMenu && (
           <div className="md:hidden mt-3 bg-white rounded-lg shadow-lg border border-gray-200">
             <nav className="py-2">
               <Link
                 href="/rooms"
-                className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
+                className={isActive('/rooms') ? activeMobileLinkClasses : inactiveMobileLinkClasses}
                 onClick={() => setShowMobileMenu(false)}
               >
                 <Home className="h-4 w-4 mr-3 text-gray-500" />
@@ -265,7 +240,7 @@ export default function Navbar() {
               </Link>
               <Link
                 href="/hotels"
-                className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
+                className={isActive('/hotels') ? activeMobileLinkClasses : inactiveMobileLinkClasses}
                 onClick={() => setShowMobileMenu(false)}
               >
                 <Building2 className="h-4 w-4 mr-3 text-gray-500" />
@@ -273,7 +248,7 @@ export default function Navbar() {
               </Link>
               <Link
                 href="/bookings"
-                className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
+                className={isActive('/bookings') ? activeMobileLinkClasses : inactiveMobileLinkClasses}
                 onClick={() => setShowMobileMenu(false)}
               >
                 <Calendar className="h-4 w-4 mr-3 text-gray-500" />
@@ -288,7 +263,7 @@ export default function Navbar() {
                     <>
                       <Link
                         href="/profile"
-                        className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
+                        className={isActive('/profile') ? activeMobileLinkClasses : inactiveMobileLinkClasses}
                         onClick={() => setShowMobileMenu(false)}
                       >
                         <User className="h-4 w-4 mr-3 text-gray-500" />
@@ -296,7 +271,7 @@ export default function Navbar() {
                       </Link>
                       <Link
                         href="/messages"
-                        className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
+                        className={isActive('/messages') ? activeMobileLinkClasses : inactiveMobileLinkClasses}
                         onClick={() => setShowMobileMenu(false)}
                       >
                         <MessageSquare className="h-4 w-4 mr-3 text-gray-500" />
@@ -304,7 +279,7 @@ export default function Navbar() {
                       </Link>
                       <Link
                         href="/dashboard/hotels"
-                        className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
+                        className={isActive('/dashboard') ? activeMobileLinkClasses : inactiveMobileLinkClasses}
                         onClick={() => setShowMobileMenu(false)}
                       >
                         <Settings className="h-4 w-4 mr-3 text-gray-500" />
@@ -325,7 +300,7 @@ export default function Navbar() {
                     <>
                       <Link
                         href="/auth/login"
-                        className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
+                        className={isActive('/auth/login') ? activeMobileLinkClasses : inactiveMobileLinkClasses}
                         onClick={() => setShowMobileMenu(false)}
                       >
                         <LogIn className="h-4 w-4 mr-3 text-gray-500" />
@@ -333,7 +308,7 @@ export default function Navbar() {
                       </Link>
                       <Link
                         href="/auth/register"
-                        className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
+                        className={isActive('/auth/register') ? activeMobileLinkClasses : inactiveMobileLinkClasses}
                         onClick={() => setShowMobileMenu(false)}
                       >
                         <UserPlus className="h-4 w-4 mr-3 text-gray-500" />
@@ -359,8 +334,8 @@ export default function Navbar() {
               </div>
 
               <Link
-                href="/help"
-                className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
+                href="/"
+                className={isActive('/help') ? activeMobileLinkClasses : inactiveMobileLinkClasses}
                 onClick={() => setShowMobileMenu(false)}
               >
                 <HelpCircle className="h-4 w-4 mr-3 text-gray-500" />
