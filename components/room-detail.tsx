@@ -1,10 +1,16 @@
 "use client"
 
-import { ArrowLeft, Check, Euro, Heart, MapPin, Share, Star, User } from "lucide-react"
+import { ArrowLeft, Check, Euro, Heart, MapPin, Share, Star, User, Calendar, AlertCircle } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { use, useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
+import { toast } from "sonner"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Loader2 } from "lucide-react"
+import { useAuth } from "@/lib/auth-context"
+import { NegotiationDialog } from "@/components/negotiation-dialog"
 
 // Types
 type RoomType = {
@@ -44,10 +50,18 @@ type RoomParams = {
   id: string
 }
 
+type AvailabilityResponse = {
+  available: boolean
+  conflictingBookings: number
+  conflictingNegotiations: number
+}
+
 export default function RoomDetail({ params }: { params: RoomParams }) {
+  const { user } = useAuth()
   // Déballer les paramètres avec use() et le bon typage
   const unwrappedParams = use(params as unknown as Promise<RoomParams>)
   const roomId = unwrappedParams.id
+  const isAuthenticated = user !== null
 
   const [room, setRoom] = useState<RoomWithRelations | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -59,6 +73,18 @@ export default function RoomDetail({ params }: { params: RoomParams }) {
   const [guestCount, setGuestCount] = useState(1)
   const [showAllAmenities, setShowAllAmenities] = useState(false)
   const router = useRouter()
+  
+  // États pour la réservation
+  const [checkingAvailability, setCheckingAvailability] = useState(false)
+  const [isRoomAvailable, setIsRoomAvailable] = useState<boolean | null>(null)
+  const [showLoginDialog, setShowLoginDialog] = useState(false)
+  const [showConfirmationDialog, setShowConfirmationDialog] = useState(false)
+  const [isBooking, setIsBooking] = useState(false)
+  const [bookingSuccess, setBookingSuccess] = useState(false)
+  const [bookingError, setBookingError] = useState<string | null>(null)
+  
+  // États pour la négociation
+  const [showNegotiationDialog, setShowNegotiationDialog] = useState(false)
 
   useEffect(() => {
     let isMounted = true
@@ -105,6 +131,11 @@ export default function RoomDetail({ params }: { params: RoomParams }) {
     }
   }, [roomId])
 
+  // Réinitialiser l'état de disponibilité lorsque les dates changent
+  useEffect(() => {
+    setIsRoomAvailable(null)
+  }, [checkInDate, checkOutDate])
+
   const toggleFavorite = () => {
     setIsFavorite((prev) => !prev)
   }
@@ -115,6 +146,52 @@ export default function RoomDetail({ params }: { params: RoomParams }) {
 
   const prevImage = () => {
     setCurrentImageIndex((prev) => (prev - 1 + 5) % 5)
+  }
+
+  // Fonction pour vérifier la disponibilité de la chambre
+  const checkAvailability = async () => {
+    if (!checkInDate || !checkOutDate) {
+      toast("Dates requises",{
+        description: "Veuillez sélectionner une date d'arrivée et de départ"
+      })
+      return
+    }
+
+    // Validation des dates
+    const startDate = new Date(checkInDate)
+    const endDate = new Date(checkOutDate)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    if (startDate < today) {
+      toast("Date invalide",{
+        description: "La date d'arrivée doit être aujourd'hui ou ultérieure"
+      })
+      return
+    }
+
+    if (endDate <= startDate) {
+      toast("Dates invalides",{
+        description: "La date de départ doit être postérieure à la date d'arrivée"
+      })
+      return
+    }
+
+    setCheckingAvailability(true)
+    try {
+      const response = await fetch(
+        `/api/rooms/${roomId}/availability?startDate=${checkInDate}&endDate=${checkOutDate}`
+      )
+      const data: AvailabilityResponse = await response.json()
+      setIsRoomAvailable(data.available)
+    } catch (err) {
+      console.error("Erreur lors de la vérification de disponibilité:", err)
+      toast("Erreur", {
+        description: "Impossible de vérifier la disponibilité",
+      })
+    } finally {
+      setCheckingAvailability(false)
+    }
   }
 
   // Calculate total price
@@ -130,6 +207,86 @@ export default function RoomDetail({ params }: { params: RoomParams }) {
   }
 
   const totalPrice = calculateTotalPrice()
+  const serviceFee = Math.round(totalPrice * 0.12)
+  const finalPrice = totalPrice + serviceFee
+
+  // Fonction pour démarrer le processus de réservation
+  const handleBookNow = async () => {
+    if (!checkInDate || !checkOutDate) {
+      toast("Dates requises", {
+        description: "Veuillez sélectionner une date d'arrivée et de départ",
+      })
+      return
+    }
+
+    // Vérifier d'abord si l'utilisateur est connecté
+    if (!isAuthenticated) {
+      setShowLoginDialog(true)
+      return
+    }
+
+    // Si la disponibilité n'a pas encore été vérifiée, la vérifier maintenant
+    if (isRoomAvailable === null) {
+      await checkAvailability()
+      // Continuer seulement si la chambre est disponible
+      if (!isRoomAvailable) return
+    }
+
+    // Si la chambre n'est pas disponible, afficher un message d'erreur
+    if (isRoomAvailable === false) {
+      toast("Chambre non disponible", {
+        description: "Cette chambre n'est pas disponible pour les dates sélectionnées"
+      })
+      return
+    }
+
+    // Tout est bon, ouvrir la boîte de dialogue de confirmation
+    setShowConfirmationDialog(true)
+  }
+
+  // Fonction pour finaliser la réservation
+  const confirmBooking = async () => {
+    setIsBooking(true)
+    setBookingError(null)
+
+    try {
+      const response = await fetch("/api/bookings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          roomId,
+          startDate: checkInDate,
+          endDate: checkOutDate,
+          price: finalPrice,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Échec de la réservation")
+      }
+
+      // Réservation réussie
+      setBookingSuccess(true)
+      toast("Réservation confirmée", {
+        description: "Votre réservation a été enregistrée avec succès!"
+      })
+
+      // Fermer la boîte de dialogue après 2 secondes
+      setTimeout(() => {
+        setShowConfirmationDialog(false)
+        // Rediriger vers la page de réservations
+        router.push("/bookings")
+      }, 2000)
+    } catch (err) {
+      console.error("Erreur lors de la réservation:", err)
+      setBookingError(err instanceof Error ? err.message : "Une erreur est survenue lors de la réservation")
+    } finally {
+      setIsBooking(false)
+    }
+  }
 
   if (isLoading) {
     return (
@@ -352,6 +509,7 @@ export default function RoomDetail({ params }: { params: RoomParams }) {
                     className="w-full border-none p-0 text-sm focus:ring-0"
                     value={checkInDate}
                     onChange={(e) => setCheckInDate(e.target.value)}
+                    min={new Date().toISOString().split('T')[0]}
                   />
                 </div>
                 <div className="p-3">
@@ -361,6 +519,7 @@ export default function RoomDetail({ params }: { params: RoomParams }) {
                     className="w-full border-none p-0 text-sm focus:ring-0"
                     value={checkOutDate}
                     onChange={(e) => setCheckOutDate(e.target.value)}
+                    min={checkInDate || new Date().toISOString().split('T')[0]}
                   />
                 </div>
               </div>
@@ -371,7 +530,7 @@ export default function RoomDetail({ params }: { params: RoomParams }) {
                   value={guestCount}
                   onChange={(e) => setGuestCount(Number.parseInt(e.target.value))}
                 >
-                  {[...Array(room.maxOccupancy)].map((_, i) => (
+                  {[...Array(room.maxOccupancy || 4)].map((_, i) => (
                     <option key={i + 1} value={i + 1}>
                       {i + 1} voyageur{i > 0 ? "s" : ""}
                     </option>
@@ -380,7 +539,53 @@ export default function RoomDetail({ params }: { params: RoomParams }) {
               </div>
             </div>
 
-            <Button className="w-full mt-4 py-3 rounded-lg bg-gradient-to-r from-[#E61E4D] to-[#D70466] hover:from-[#D70466] hover:to-[#BD1E59] text-white font-medium">
+            {/* Affichage des informations de disponibilité */}
+            {isRoomAvailable !== null && (
+              <div className="mt-4">
+                {isRoomAvailable ? (
+                  <Alert className="bg-green-50 border-green-200">
+                    <Calendar className="h-4 w-4 text-green-600" />
+                    <AlertTitle className="text-green-600">Disponible</AlertTitle>
+                    <AlertDescription className="text-green-600">
+                      Cette chambre est disponible pour les dates sélectionnées.
+                    </AlertDescription>
+                  </Alert>
+                ) : (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle>Non disponible</AlertTitle>
+                    <AlertDescription>
+                      Cette chambre n'est pas disponible pour les dates sélectionnées.
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
+            )}
+
+            {/* Bouton pour vérifier la disponibilité */}
+            {checkInDate && checkOutDate && isRoomAvailable === null && (
+              <Button 
+                className="w-full mt-4 py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium"
+                onClick={checkAvailability}
+                disabled={checkingAvailability}
+              >
+                {checkingAvailability ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Vérification...
+                  </>
+                ) : (
+                  "Vérifier la disponibilité"
+                )}
+              </Button>
+            )}
+
+            {/* Bouton de réservation */}
+            <Button 
+              className="w-full mt-4 py-3 rounded-lg bg-gradient-to-r from-[#E61E4D] to-[#D70466] hover:from-[#D70466] hover:to-[#BD1E59] text-white font-medium"
+              onClick={handleBookNow}
+              disabled={checkingAvailability || (isRoomAvailable === false) || !checkInDate || !checkOutDate}
+            >
               Réserver
             </Button>
 
@@ -394,11 +599,11 @@ export default function RoomDetail({ params }: { params: RoomParams }) {
                 </div>
                 <div className="flex justify-between">
                   <span className="underline">Frais de service</span>
-                  <span>{Math.round(totalPrice * 0.12)} €</span>
+                  <span>{serviceFee} €</span>
                 </div>
                 <div className="flex justify-between font-semibold pt-3 border-t">
                   <span>Total</span>
-                  <span>{totalPrice + Math.round(totalPrice * 0.12)} €</span>
+                  <span>{finalPrice} €</span>
                 </div>
               </div>
             )}
@@ -407,9 +612,8 @@ export default function RoomDetail({ params }: { params: RoomParams }) {
               <Button
                 variant="outline"
                 className="w-full border-gray-300 hover:border-gray-500 rounded-lg"
-                onClick={() => {
-                  // Implement negotiation logic
-                }}
+                onClick={() => setShowNegotiationDialog(true)}
+                disabled={!checkInDate || !checkOutDate}
               >
                 <Euro className="h-4 w-4 mr-2" />
                 Proposer un prix
@@ -420,6 +624,138 @@ export default function RoomDetail({ params }: { params: RoomParams }) {
           </div>
         </div>
       </div>
+
+      {/* Boîte de dialogue de connexion */}
+      <Dialog open={showLoginDialog} onOpenChange={setShowLoginDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Connexion requise</DialogTitle>
+            <DialogDescription>
+              Vous devez être connecté pour effectuer une réservation.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center space-x-2 py-4">
+            <p>Veuillez vous connecter pour continuer la réservation.</p>
+          </div>
+          <DialogFooter className="sm:justify-between">
+            <Button variant="outline" onClick={() => setShowLoginDialog(false)}>
+              Annuler
+            </Button>
+            <Button type="button" onClick={() => {
+              setShowLoginDialog(false)
+              router.push(`/auth/login?redirect=/room/${roomId}`)
+            }}>
+              Se connecter
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Boîte de dialogue de confirmation de réservation */}
+      <Dialog open={showConfirmationDialog} onOpenChange={setShowConfirmationDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Confirmer votre réservation</DialogTitle>
+            <DialogDescription>
+              Veuillez vérifier les détails de votre réservation avant de confirmer.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <h4 className="font-medium text-sm">Date d'arrivée</h4>
+                  <p>{new Date(checkInDate).toLocaleDateString('fr-FR')}</p>
+                </div>
+                <div>
+                  <h4 className="font-medium text-sm">Date de départ</h4>
+                  <p>{new Date(checkOutDate).toLocaleDateString('fr-FR')}</p>
+                </div>
+              </div>
+              
+              <div>
+                <h4 className="font-medium text-sm">Chambre</h4>
+                <p>{room.name}</p>
+                <p className="text-sm text-gray-600">{room.hotel.name}</p>
+              </div>
+              
+              <div className="border-t pt-4 mt-4">
+                <h4 className="font-medium text-sm">Détails du prix</h4>
+                <div className="flex justify-between text-sm mt-2">
+                  <span>{room.price} € x {totalPrice / room.price} nuits</span>
+                  <span>{totalPrice} €</span>
+                </div>
+                <div className="flex justify-between text-sm mt-1">
+                  <span>Frais de service</span>
+                  <span>{serviceFee} €</span>
+                </div>
+                <div className="flex justify-between font-medium mt-2 pt-2 border-t">
+                  <span>Total</span>
+                  <span>{finalPrice} €</span>
+                </div>
+              </div>
+              
+              {bookingError && (
+                <Alert variant="destructive" className="mt-4">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>Erreur</AlertTitle>
+                  <AlertDescription>{bookingError}</AlertDescription>
+                </Alert>
+              )}
+              
+              {bookingSuccess && (
+                <Alert className="bg-green-50 border-green-200 mt-4">
+                  <Check className="h-4 w-4 text-green-600" />
+                  <AlertTitle className="text-green-600">Réservation confirmée</AlertTitle>
+                  <AlertDescription className="text-green-600">
+                    Votre réservation a été effectuée avec succès!
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
+          </div>
+          <DialogFooter className="sm:justify-between">
+            <Button 
+              variant="outline" 
+              onClick={() => setShowConfirmationDialog(false)}
+              disabled={isBooking || bookingSuccess}
+            >
+              Annuler
+            </Button>
+            <Button 
+              type="button" 
+              onClick={confirmBooking}
+              disabled={isBooking || bookingSuccess}
+              className={bookingSuccess ? "bg-green-600 hover:bg-green-700" : ""}
+            >
+              {isBooking ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Traitement...
+                </>
+              ) : bookingSuccess ? (
+                <>
+                  <Check className="mr-2 h-4 w-4" />
+                  Réservé
+                </>
+              ) : (
+                "Confirmer la réservation"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Boîte de dialogue de négociation */}
+      {room && (
+        <NegotiationDialog 
+          isOpen={showNegotiationDialog}
+          onClose={() => setShowNegotiationDialog(false)}
+          room={room}
+          startDate={checkInDate}
+          endDate={checkOutDate}
+        />
+      )}
     </div>
   )
 }

@@ -7,6 +7,8 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
 import { Badge } from "@/components/ui/badge"
+import HotelChatbot from "@/components/chatbot"
+import { useRouter } from "next/navigation"
 
 type Hotel = {
   id: string
@@ -57,6 +59,7 @@ function calculateSimilarity(term: string, text: string): number {
 }
 
 export default function HotelsList() {
+  const router = useRouter()
   const [hotels, setHotels] = useState<Hotel[]>([])
   const [searchTerm, setSearchTerm] = useState<string>("")
   const [filteredHotels, setFilteredHotels] = useState<Hotel[]>([])
@@ -294,7 +297,7 @@ export default function HotelsList() {
         .toLowerCase()
         .split(/\s+/)
         .map((nameWord) => calculateSimilarity(word, nameWord))
-        
+
       const addressSimilarities = hotel.address
         .toLowerCase()
         .split(/\s+/)
@@ -381,6 +384,29 @@ export default function HotelsList() {
       setSelectedCategories(["all"])
     }
   }, [selectedCategories])
+
+  // Fonction pour gérer la recherche depuis le chatbot
+  const handleChatbotSearch = (query: string) => {
+    if (query) {
+      setSearchTerm(query)
+    }
+  }
+
+  // Fonction pour gérer les changements de filtres depuis le chatbot
+  const handleChatbotFilterChange = (filters: any) => {
+    if (filters.minRate !== undefined) {
+      setMinRate(filters.minRate)
+    }
+    if (filters.minRooms !== undefined) {
+      setMinRooms(filters.minRooms)
+    }
+    if (filters.cities !== undefined && Array.isArray(filters.cities)) {
+      setSelectedCities(filters.cities)
+    }
+    if (filters.zipCodes !== undefined && Array.isArray(filters.zipCodes)) {
+      setSelectedZipCodes(filters.zipCodes)
+    }
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -777,7 +803,7 @@ export default function HotelsList() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredHotels.map((hotel) => (
             <Link
-              href={`/dashboard/hotels/${hotel.id}`}
+              href={`/hotels/${hotel.id}`}
               key={hotel.id}
               className="group flex flex-col h-full bg-white rounded-xl overflow-hidden hover:shadow-md transition-all border border-gray-200"
             >
@@ -845,6 +871,17 @@ export default function HotelsList() {
           ))}
         </div>
       )}
+
+      {/* Chatbot */}
+      <HotelChatbot
+        pageType="hotels"
+        onSearch={handleChatbotSearch}
+        onFilterChange={handleChatbotFilterChange}
+        botName="Match Room Assistant"
+        accentColor="#6366f1"
+        position="bottom-right"
+        initialMessage="Bonjour ! Je peux vous aider à trouver l'hôtel parfait. Que recherchez-vous ?"
+      />
     </div>
   )
 }

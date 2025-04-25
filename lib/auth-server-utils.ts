@@ -46,6 +46,20 @@ export async function withServerAuth(handler: (user: any) => Promise<Response>) 
   return handler(user)
 }
 
+export async function withManagerAuth(handler: (user: any) => Promise<Response>) {
+  const user = await getServerAuthUser()
+
+  if (!user) {
+    return Response.json({ error: "Non autorisé" }, { status: 401 })
+  }
+
+  if (user.role.name !== "MANAGER") {
+    return Response.json({ error: "Accès réservé aux managers" }, { status: 403 })
+  }
+
+  return handler(user)
+}
+
 export async function getUserSession() {
   return getServerAuthUser()
 }

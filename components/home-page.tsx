@@ -67,7 +67,7 @@ export default function HomePage() {
         setRoomTypes(data)
       } catch (err) {
         console.error("Error fetching room types:", err)
-        setError("Impossible de charger les types de chambres")
+        //setError("Impossible de charger les types de chambres")
       } finally {
         setIsLoadingRoomTypes(false)
       }
