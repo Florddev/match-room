@@ -16,6 +16,8 @@ export type User = {
     roleId: string
     role: Role
     hotels: Hotel[]
+    createdAt: Date
+    updatedAt: Date
 }
 
 export type Hotel = {

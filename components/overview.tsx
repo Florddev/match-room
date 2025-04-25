@@ -1,71 +1,44 @@
 "use client"
 
-import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from "recharts"
+import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from "recharts"
 
-const data = [
-  {
-    name: "Jan",
-    total: Math.floor(Math.random() * 5000) + 1000,
-  },
-  {
-    name: "Feb",
-    total: Math.floor(Math.random() * 5000) + 1000,
-  },
-  {
-    name: "Mar",
-    total: Math.floor(Math.random() * 5000) + 1000,
-  },
-  {
-    name: "Apr",
-    total: Math.floor(Math.random() * 5000) + 1000,
-  },
-  {
-    name: "May",
-    total: Math.floor(Math.random() * 5000) + 1000,
-  },
-  {
-    name: "Jun",
-    total: Math.floor(Math.random() * 5000) + 1000,
-  },
-  {
-    name: "Jul",
-    total: Math.floor(Math.random() * 5000) + 1000,
-  },
-  {
-    name: "Aug",
-    total: Math.floor(Math.random() * 5000) + 1000,
-  },
-  {
-    name: "Sep",
-    total: Math.floor(Math.random() * 5000) + 1000,
-  },
-  {
-    name: "Oct",
-    total: Math.floor(Math.random() * 5000) + 1000,
-  },
-  {
-    name: "Nov",
-    total: Math.floor(Math.random() * 5000) + 1000,
-  },
-  {
-    name: "Dec",
-    total: Math.floor(Math.random() * 5000) + 1000,
-  },
-]
+interface OverviewProps {
+  data: {
+    month: string
+    bookings: number
+    revenue: number
+  }[]
+}
 
-export function Overview() {
+export function Overview({ data }: OverviewProps) {
+  // Formater les données pour le graphique
+  const chartData = data.map((item) => ({
+    ...item,
+    revenue: item.revenue / 100, // Convertir en centaines pour une meilleure lisibilité
+  }))
+
   return (
     <ResponsiveContainer width="100%" height={350}>
-      <BarChart data={data}>
-        <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
-        <YAxis
-          stroke="#888888"
-          fontSize={12}
-          tickLine={false}
-          axisLine={false}
-          tickFormatter={(value) => `$${value}`}
+      <BarChart data={chartData}>
+        <XAxis dataKey="month" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
+        <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}`} />
+        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+        <Tooltip
+          formatter={(value, name) => {
+            if (name === "revenue") {
+              return [`$${((value as number) * 100).toFixed(2)}`, "Revenus"]
+            }
+            return [value, name === "bookings" ? "Réservations" : name]
+          }}
+          labelFormatter={(label) => `Mois: ${label}`}
         />
-        <Bar dataKey="total" fill="currentColor" radius={[4, 4, 0, 0]} className="fill-primary" />
+        <Legend
+          formatter={(value) => {
+            return value === "bookings" ? "Réservations" : "Revenus (x100)"
+          }}
+        />
+        <Bar dataKey="bookings" name="bookings" fill="#8884d8" radius={[4, 4, 0, 0]} />
+        <Bar dataKey="revenue" name="revenue" fill="#82ca9d" radius={[4, 4, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
   )
