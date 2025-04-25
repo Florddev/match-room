@@ -345,3 +345,4 @@ export function BookingForm({ room }: BookingFormProps) {
       </Dialog>
     </>
   );
+}
