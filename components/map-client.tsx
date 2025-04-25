@@ -1,8 +1,8 @@
 "use client"
 
 import "leaflet/dist/leaflet.css"
-import { useEffect, useRef, useState } from "react"
 import { Loader2 } from "lucide-react"
+import { useEffect, useRef, useState } from "react"
 
 // Types pour les chambres et hôtels
 type Hotel = {
@@ -25,6 +25,7 @@ type Room = {
   categories: string
   tags: string
   hotelId: string
+  hotel?: Hotel
 }
 
 // Type pour les coordonnées géographiques
@@ -52,11 +53,12 @@ export default function MapClientComponent({ filteredRooms, hotels }: MapClientC
   const [leafletLoaded, setLeafletLoaded] = useState<boolean>(false)
   const [mapInitialized, setMapInitialized] = useState<boolean>(false)
   const [L, setL] = useState<any>(null) // State pour stocker l'instance Leaflet
-  const [selectedHotel, setSelectedHotel] = useState<string | null>(null)
+  const [selectedItem, setSelectedItem] = useState<string | null>(null)
+  const [displayMode, setDisplayMode] = useState<'rooms' | 'hotels' | 'both'>('both')
 
   // Fonction pour géocoder une adresse
-  const geocodeAddress = async (hotel: Hotel): Promise<GeoCoordinates> => {
-    const cacheKey = `${hotel.address}, ${hotel.city}, ${hotel.zipCode}`
+  const geocodeAddress = async (address: string, city: string, zipCode: string): Promise<GeoCoordinates> => {
+    const cacheKey = `${address}, ${city}, ${zipCode}`
 
     // Vérifier si l'adresse est déjà dans le cache
     if (geocodingCache[cacheKey]) {
@@ -65,7 +67,7 @@ export default function MapClientComponent({ filteredRooms, hotels }: MapClientC
 
     try {
       // Formater l'adresse pour l'URL
-      const query = encodeURIComponent(`${hotel.address}, ${hotel.zipCode} ${hotel.city}`)
+      const query = encodeURIComponent(`${address}, ${zipCode} ${city}`)
       const url = `https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=1`
 
       // Ajouter un délai pour respecter les limites de l'API (max 1 requête par seconde)
@@ -91,7 +93,7 @@ export default function MapClientComponent({ filteredRooms, hotels }: MapClientC
         throw new Error("Adresse non trouvée")
       }
     } catch (error) {
-      console.error(`Erreur de géocodage pour ${hotel.name}:`, error)
+      console.error(`Erreur de géocodage pour ${address}:`, error)
       // Position par défaut (Paris) avec un léger offset aléatoire
       return {
         lat: 48.8566 + (Math.random() * 0.02 - 0.01),
@@ -169,6 +171,33 @@ export default function MapClientComponent({ filteredRooms, hotels }: MapClientC
         })
         .addTo(map)
 
+      // Ajouter un contrôle personnalisé pour basculer entre chambres/hôtels
+      const customControl = L.control({ position: 'topright' });
+      customControl.onAdd = function () {
+        const div = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
+        div.innerHTML = `
+          <div class="bg-white rounded-md shadow-md p-2 flex flex-col gap-1">
+            <button class="px-3 py-1 text-xs rounded-md ${displayMode === 'both' ? 'bg-blue-500 text-white' : 'bg-gray-100 hover:bg-gray-200'}" id="toggle-both">Tous</button>
+            <button class="px-3 py-1 text-xs rounded-md ${displayMode === 'hotels' ? 'bg-blue-500 text-white' : 'bg-gray-100 hover:bg-gray-200'}" id="toggle-hotels">Hôtels</button>
+            <button class="px-3 py-1 text-xs rounded-md ${displayMode === 'rooms' ? 'bg-blue-500 text-white' : 'bg-gray-100 hover:bg-gray-200'}" id="toggle-rooms">Chambres</button>
+          </div>
+        `;
+
+        // Ajouter les événements
+        setTimeout(() => {
+          const bothBtn = document.getElementById('toggle-both');
+          const hotelsBtn = document.getElementById('toggle-hotels');
+          const roomsBtn = document.getElementById('toggle-rooms');
+
+          if (bothBtn) bothBtn.addEventListener('click', () => setDisplayMode('both'));
+          if (hotelsBtn) hotelsBtn.addEventListener('click', () => setDisplayMode('hotels'));
+          if (roomsBtn) roomsBtn.addEventListener('click', () => setDisplayMode('rooms'));
+        }, 100);
+
+        return div;
+      };
+      customControl.addTo(map);
+
       // Stocker l'instance de map dans la référence
       mapInstanceRef.current = map
 
@@ -177,18 +206,17 @@ export default function MapClientComponent({ filteredRooms, hotels }: MapClientC
     } catch (error) {
       console.error("Erreur lors de l'initialisation de la carte:", error)
     }
-  }, [leafletLoaded, L]) // Dépendances: leafletLoaded et L
+  }, [leafletLoaded, L, displayMode]) // Dépendances: leafletLoaded, L et displayMode
 
-  // Effet de mise à jour des marqueurs - exécuté quand filteredRooms ou hotels change
+  // Effet de mise à jour des marqueurs - exécuté quand filteredRooms, hotels ou displayMode change
   useEffect(() => {
     // Ne pas continuer si la carte n'est pas initialisée, pas d'hôtels, pas de Leaflet ou déjà en train de géocoder
     if (
       !mapInitialized ||
       !mapInstanceRef.current ||
       !L ||
-      hotels.length === 0 ||
       isGeocoding ||
-      filteredRooms.length === 0
+      (hotels.length === 0 && filteredRooms.length === 0)
     ) {
       return
     }
@@ -205,46 +233,43 @@ export default function MapClientComponent({ filteredRooms, hotels }: MapClientC
         markersRef.current.forEach((marker) => marker.remove())
         markersRef.current = []
 
-        // Obtenir les hôtels pertinents
-        const filteredHotelIds = new Set(filteredRooms.map((room) => room.hotelId))
-        const relevantHotels = hotels.filter((hotel) => filteredHotelIds.has(hotel.id))
-        console.log(`Found ${relevantHotels.length} relevant hotels`)
+        const bounds = L.latLngBounds([])
 
-        // Si nous avons des hôtels pertinents, ajuster la vue de la carte
-        if (relevantHotels.length > 0) {
-          const bounds = L.latLngBounds([])
-
-          // Traiter chaque hôtel
-          for (const hotel of relevantHotels) {
-            // Obtenir toutes les chambres pour cet hôtel qui sont dans la liste filtrée
-            const hotelRooms = filteredRooms.filter((room) => room.hotelId === hotel.id)
-
-            if (hotelRooms.length === 0) continue
-
-            // Obtenir la chambre avec le prix le plus bas pour cet hôtel
-            const minPrice = Math.min(...hotelRooms.map((room) => room.price))
-
-            // Obtenir les coordonnées de l'hôtel par géocodage
-            const coordinates = await geocodeAddress(hotel)
-
-            // Vérifier que les coordonnées sont valides
-            if (isNaN(coordinates.lat) || isNaN(coordinates.lng)) {
-              console.error(`Coordonnées invalides pour l'hôtel ${hotel.name}:`, coordinates)
-              continue
-            }
-
+        // AFFICHER LES HÔTELS
+        if (displayMode === 'hotels' || displayMode === 'both') {
+          for (const hotel of hotels) {
             try {
-              // Créer un marqueur personnalisé avec icône de prix
-              const isSelected = selectedHotel === hotel.id
-              const priceIcon = L.divIcon({
-                className: "custom-price-marker",
-                html: `<div style="background-color:${isSelected ? "#FF385C" : "#4f46e5"}; color:white; padding:6px 12px; border-radius:9999px; font-weight:bold; font-size:14px; min-width:60px; text-align:center; box-shadow:0 2px 4px rgba(0,0,0,0.2); transform: ${isSelected ? "scale(1.1)" : "scale(1)"}; transition: transform 0.2s ease;">${minPrice}€</div>`,
+              // Obtenir les coordonnées de l'hôtel par géocodage
+              const coordinates = await geocodeAddress(hotel.address, hotel.city, hotel.zipCode)
+
+              // Vérifier que les coordonnées sont valides
+              if (isNaN(coordinates.lat) || isNaN(coordinates.lng)) {
+                console.error(`Coordonnées invalides pour l'hôtel ${hotel.name}:`, coordinates)
+                continue
+              }
+
+              // Obtenir toutes les chambres pour cet hôtel
+              const hotelRooms = hotel.rooms || filteredRooms.filter((room) => room.hotelId === hotel.id)
+
+              // Calculer le prix minimum si des chambres sont disponibles
+              const roomsCount = hotelRooms.length
+              const minPrice = roomsCount > 0 ? Math.min(...hotelRooms.map((room) => room.price)) : null
+
+              // Créer un marqueur personnalisé avec icône
+              const isSelected = selectedItem === hotel.id
+              const markerHtml = minPrice
+                ? `<div style="background-color:${isSelected ? "#FF385C" : "#4f46e5"}; color:white; padding:6px 12px; border-radius:9999px; font-weight:bold; font-size:14px; min-width:60px; text-align:center; box-shadow:0 2px 4px rgba(0,0,0,0.2); transform: ${isSelected ? "scale(1.1)" : "scale(1)"}; transition: transform 0.2s ease;">${minPrice}€</div>`
+                : `<div style="background-color:${isSelected ? "#FF385C" : "#334155"}; color:white; padding:6px 12px; border-radius:9999px; font-weight:bold; font-size:14px; min-width:60px; text-align:center; box-shadow:0 2px 4px rgba(0,0,0,0.2); transform: ${isSelected ? "scale(1.1)" : "scale(1)"}; transition: transform 0.2s ease;">${hotel.name}</div>`;
+
+              const icon = L.divIcon({
+                className: "custom-hotel-marker",
+                html: markerHtml,
                 iconSize: [80, 40],
                 iconAnchor: [40, 20],
               })
 
               // Ajouter le marqueur à la carte
-              const marker = L.marker([coordinates.lat, coordinates.lng], { icon: priceIcon }).addTo(map)
+              const marker = L.marker([coordinates.lat, coordinates.lng], { icon }).addTo(map)
               markersRef.current.push(marker)
 
               // Créer une popup avec les détails de l'hôtel
@@ -252,8 +277,8 @@ export default function MapClientComponent({ filteredRooms, hotels }: MapClientC
                 <div style="max-width: 250px;">
                   <h3 style="font-size: 16px; font-weight: 500; margin-bottom: 5px;">${hotel.name}</h3>
                   <p style="font-size: 14px; color: #666; margin-bottom: 10px;">${hotel.address}, ${hotel.city} ${hotel.zipCode}</p>
-                  <p style="font-size: 14px; font-weight: 700; margin-bottom: 5px;">${hotelRooms.length} chambres disponibles</p>
-                  <p style="font-size: 14px;">À partir de <span style="font-weight: bold;">${minPrice}€</span> / nuit</p>
+                  ${roomsCount > 0 ? `<p style="font-size: 14px; font-weight: 700; margin-bottom: 5px;">${roomsCount} chambre${roomsCount > 1 ? 's' : ''} disponible${roomsCount > 1 ? 's' : ''}</p>` : ''}
+                  ${minPrice !== null ? `<p style="font-size: 14px;">À partir de <span style="font-weight: bold;">${minPrice}€</span> / nuit</p>` : ''}
                   <div style="display: flex; align-items: center; margin-top: 5px;">
                     <span style="font-size: 14px; margin-right: 5px;">${hotel.rate}</span>
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="#FFD700">
@@ -267,7 +292,7 @@ export default function MapClientComponent({ filteredRooms, hotels }: MapClientC
 
               // Ajouter un événement au clic sur le marqueur
               marker.on("click", () => {
-                setSelectedHotel(hotel.id)
+                setSelectedItem(hotel.id)
               })
 
               // Étendre les limites pour inclure ce marqueur
@@ -276,25 +301,116 @@ export default function MapClientComponent({ filteredRooms, hotels }: MapClientC
               console.error(`Erreur lors de l'ajout du marqueur pour ${hotel.name}:`, error)
             }
           }
+        }
 
-          // Ajuster la vue de la carte pour afficher tous les marqueurs
-          if (bounds.isValid()) {
+        // AFFICHER LES CHAMBRES INDIVIDUELLES
+        if (displayMode === 'rooms' || displayMode === 'both') {
+          // Créer un Map pour stocker les coordonnées des hôtels déjà géocodés
+          const hotelCoordinates = new Map<string, GeoCoordinates>()
+
+          for (const room of filteredRooms) {
             try {
-              map.fitBounds(bounds, {
-                padding: [50, 50],
+              // Trouver l'hôtel associé à cette chambre
+              const hotel = hotels.find(h => h.id === room.hotelId) || room.hotel
+
+              if (!hotel) {
+                console.warn(`Hôtel introuvable pour la chambre ${room.id}`)
+                continue
+              }
+
+              // Vérifier si nous avons déjà les coordonnées pour cet hôtel
+              let coordinates: GeoCoordinates
+
+              if (hotelCoordinates.has(hotel.id)) {
+                coordinates = hotelCoordinates.get(hotel.id)!
+              } else {
+                // Sinon, géocoder l'adresse
+                coordinates = await geocodeAddress(hotel.address, hotel.city, hotel.zipCode)
+
+                // Ajouter un petit décalage pour éviter que les marqueurs se superposent
+                if (displayMode === 'both') {
+                  coordinates = {
+                    lat: coordinates.lat + (Math.random() * 0.001 - 0.0005),
+                    lng: coordinates.lng + (Math.random() * 0.001 - 0.0005)
+                  }
+                }
+
+                // Stocker les coordonnées pour une utilisation ultérieure
+                hotelCoordinates.set(hotel.id, coordinates)
+              }
+
+              // Vérifier que les coordonnées sont valides
+              if (isNaN(coordinates.lat) || isNaN(coordinates.lng)) {
+                console.error(`Coordonnées invalides pour la chambre ${room.name}:`, coordinates)
+                continue
+              }
+
+              // Créer un marqueur personnalisé pour la chambre
+              const isSelected = selectedItem === room.id
+              const icon = L.divIcon({
+                className: "custom-room-marker",
+                html: `<div style="background-color:${isSelected ? "#FF385C" : "#4f46e5"}; color:white; padding:6px 12px; border-radius:9999px; font-weight:bold; font-size:14px; min-width:60px; text-align:center; box-shadow:0 2px 4px rgba(0,0,0,0.2); transform: ${isSelected ? "scale(1.1)" : "scale(1)"}; transition: transform 0.2s ease;">${room.price}€</div>`,
+                iconSize: [80, 40],
+                iconAnchor: [40, 20],
               })
 
-              // Limiter le niveau de zoom maximum
-              if (map.getZoom() > 15) {
-                map.setZoom(15)
-              }
+              // Ajouter le marqueur à la carte
+              const marker = L.marker([coordinates.lat, coordinates.lng], { icon }).addTo(map)
+              markersRef.current.push(marker)
+
+              // Créer une popup avec les détails de la chambre
+              const popupContent = `
+                <div style="max-width: 250px;">
+                  <h3 style="font-size: 16px; font-weight: 500; margin-bottom: 5px;">${room.name}</h3>
+                  <p style="font-size: 14px; color: #666; margin-bottom: 5px;">${hotel.name}</p>
+                  <p style="font-size: 14px; color: #666; margin-bottom: 10px;">${hotel.address}, ${hotel.city} ${hotel.zipCode}</p>
+                  <p style="font-size: 14px; font-weight: 700; margin-bottom: 5px;">${room.price}€ / nuit</p>
+                  <div style="display: flex; align-items: center; margin-top: 5px;">
+                    <span style="font-size: 14px; margin-right: 5px;">${room.rate}</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="#FFD700">
+                      <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
+                    </svg>
+                  </div>
+                  <div style="margin-top: 5px; display: flex; flex-wrap: wrap; gap: 4px;">
+                    ${room.categories.split(',').map(cat =>
+                `<span style="background-color: #F3F4F6; color: #4B5563; padding: 2px 6px; border-radius: 9999px; font-size: 11px;">${cat.trim()}</span>`
+              ).join('')}
+                  </div>
+                </div>
+              `
+
+              marker.bindPopup(popupContent)
+
+              // Ajouter un événement au clic sur le marqueur
+              marker.on("click", () => {
+                setSelectedItem(room.id)
+              })
+
+              // Étendre les limites pour inclure ce marqueur
+              bounds.extend([coordinates.lat, coordinates.lng])
             } catch (error) {
-              console.error("Erreur lors de l'ajustement de la vue de la carte:", error)
+              console.error(`Erreur lors de l'ajout du marqueur pour la chambre ${room.name}:`, error)
             }
           }
-
-          console.log("Map updated with markers")
         }
+
+        // Ajuster la vue de la carte pour afficher tous les marqueurs
+        if (bounds.isValid()) {
+          try {
+            map.fitBounds(bounds, {
+              padding: [50, 50],
+            })
+
+            // Limiter le niveau de zoom maximum
+            if (map.getZoom() > 15) {
+              map.setZoom(15)
+            }
+          } catch (error) {
+            console.error("Erreur lors de l'ajustement de la vue de la carte:", error)
+          }
+        }
+
+        console.log("Map updated with markers")
       } catch (error) {
         console.error("Erreur lors de la mise à jour des marqueurs:", error)
       } finally {
@@ -304,7 +420,7 @@ export default function MapClientComponent({ filteredRooms, hotels }: MapClientC
 
     // Mettre à jour les marqueurs
     updateMarkers()
-  }, [filteredRooms, hotels, mapInitialized, L, isGeocoding, selectedHotel])
+  }, [filteredRooms, hotels, mapInitialized, L, isGeocoding, selectedItem, displayMode])
 
   return (
     <>
@@ -318,10 +434,10 @@ export default function MapClientComponent({ filteredRooms, hotels }: MapClientC
         </div>
       )}
       <style jsx global>{`
-        .custom-price-marker {
+        .custom-hotel-marker, .custom-room-marker {
           transition: transform 0.2s ease;
         }
-        .custom-price-marker:hover {
+        .custom-hotel-marker:hover, .custom-room-marker:hover {
           transform: scale(1.1);
           z-index: 1000 !important;
         }

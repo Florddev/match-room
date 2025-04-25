@@ -2,10 +2,10 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { ArrowRight, Calendar, Search, Users } from "lucide-react"
 import Link from "next/link"
-import { Search, Calendar, Users, ArrowRight } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { useEffect, useState } from "react"
 import EnhancedChatbot from "./enhanced-chatbot"
 
 // Types pour les données
@@ -67,7 +67,6 @@ export default function HomePage() {
         setRoomTypes(data)
       } catch (err) {
         console.error("Error fetching room types:", err)
-        //setError("Impossible de charger les types de chambres")
       } finally {
         setIsLoadingRoomTypes(false)
       }

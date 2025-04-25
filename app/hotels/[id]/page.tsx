@@ -1,29 +1,28 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { useParams, useRouter } from "next/navigation"
-import {
-  Building2,
-  MapPin,
-  Phone,
-  Star,
-  Layers,
-  ChevronRight,
-  ArrowLeft,
-  Bed,
-  DollarSign,
-  Clock,
-  Heart,
-  Share2,
-} from "lucide-react"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Button } from "@/components/ui/button"
+import HotelChatbot from "@/components/chatbot"
 import { Badge } from "@/components/ui/badge"
-import { Skeleton } from "@/components/ui/skeleton"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
-import LeafletMap from "@/components/leaflet-map"
-import HotelChatbot from "@/components/chatbot"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  ArrowLeft,
+  Bed,
+  Building2,
+  ChevronRight,
+  Clock,
+  DollarSign,
+  Heart,
+  Layers,
+  MapPin,
+  Phone,
+  Share2,
+  Star,
+} from "lucide-react"
+import { useParams, useRouter } from "next/navigation"
+import { useEffect, useState } from "react"
 
 // Type pour l'hôtel avec toutes ses relations
 type RoomType = {
@@ -90,26 +89,41 @@ export default function HotelDetailPage() {
   const [activeTab, setActiveTab] = useState("overview")
   const [favorites, setFavorites] = useState<Set<string>>(new Set())
 
-  // Récupérer les détails de l'hôtel
   useEffect(() => {
+
     const fetchHotelDetails = async () => {
       try {
-        setLoading(true)
-        const response = await fetch(`/api/hotels/${params.id}`)
+        setLoading(true);
+        setError(null);
 
-        if (!response.ok) {
-          throw new Error("Impossible de récupérer les détails de l'hôtel")
-        }
+        const response = await fetch(`/api/hotels/${params.id}`);
 
-        const data = await response.json()
-        setHotel(data)
+        const data = await response.json();
+
+        const sanitizedHotel = {
+          ...data,
+          roomCount: data.roomCount || 0,
+          minPrice: data.minPrice || 0,
+          maxPrice: data.maxPrice || 0,
+          averageRoomRate: data.averageRoomRate || 0,
+          roomTypes: Array.isArray(data.roomTypes) ? data.roomTypes : [],
+          roomCategories: Array.isArray(data.roomCategories) ? data.roomCategories : [],
+          roomTags: Array.isArray(data.roomTags) ? data.roomTags : [],
+          rooms: Array.isArray(data.rooms) ? data.rooms.map((room: any) => ({
+            ...room,
+            types: Array.isArray(room.types) ? room.types : [],
+            bookings: Array.isArray(room.bookings) ? room.bookings : [],
+            negotiations: Array.isArray(room.negotiations) ? room.negotiations : []
+          })) : []
+        };
+
+        setHotel(sanitizedHotel);
       } catch (err) {
-        setError("Une erreur est survenue lors du chargement des détails de l'hôtel")
-        console.error(err)
+        setError(err instanceof Error ? err.message : "Une erreur est survenue");
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
     if (params.id) {
       fetchHotelDetails()
@@ -358,11 +372,10 @@ export default function HotelDetailPage() {
                           />
                           <button onClick={() => toggleFavorite(room.id)} className="absolute top-3 right-3 z-10">
                             <Heart
-                              className={`h-6 w-6 ${
-                                favorites.has(room.id)
-                                  ? "fill-red-500 text-red-500"
-                                  : "text-white stroke-2 drop-shadow-md"
-                              }`}
+                              className={`h-6 w-6 ${favorites.has(room.id)
+                                ? "fill-red-500 text-red-500"
+                                : "text-white stroke-2 drop-shadow-md"
+                                }`}
                             />
                           </button>
                         </div>
