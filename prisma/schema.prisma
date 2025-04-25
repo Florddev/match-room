@@ -116,17 +116,22 @@ model RoomsTypes {
 }
 
 model Booking {
-  id        String   @id @default(uuid())
-  price     Float
-  roomId    String
-  userId    String
-  startDate DateTime @map("start_date")
-  endDate   DateTime @map("end_date")
-
-  room      Room     @relation(fields: [roomId], references: [id])
-  user      User     @relation(fields: [userId], references: [id])
-
-  @@map("bookings")
+  id              String    @id @default(cuid())
+  userId          String
+  roomId          String
+  startDate       DateTime
+  endDate         DateTime
+  price           Float
+  status          String    @default("PENDING")
+  guestCount      Int       @default(1)
+  stripeSessionId String?   
+  paymentIntentId String?   
+  paymentDate     DateTime? 
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  user            User      @relation(fields: [userId], references: [id])
+  room            Room      @relation(fields: [roomId], references: [id])
 }
 
 model Negotiation {
