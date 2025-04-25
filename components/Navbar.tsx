@@ -87,16 +87,9 @@ export default function Navbar() {
               <Building2 className="h-4 w-4 mr-1" />
               Hôtels
             </Link>
-            <Link
-              href="/bookings"
-              className="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 flex items-center"
-            >
-              <Calendar className="h-4 w-4 mr-1" />
-              Réservations
-            </Link>
           </nav>
 
-          {/* Barre de recherche - Desktop */}
+          {/* Barre de recherche - Desktop
           <div className="hidden md:block max-w-md">
             <form
               onSubmit={handleSearch}
@@ -113,7 +106,8 @@ export default function Navbar() {
                 <SearchIcon className="h-4 w-4" />
               </button>
             </form>
-          </div>
+          </div> 
+          */}
 
           {/* Actions utilisateur - Desktop */}
           <div className="hidden md:flex items-center space-x-2">
@@ -171,18 +165,33 @@ export default function Navbar() {
                         <User className="h-4 w-4 mr-3 text-gray-500" />
                         Profil
                       </Link>
-                      <Link href="/messages" className="flex items-center px-4 py-2 text-sm hover:bg-gray-100">
-                        <MessageSquare className="h-4 w-4 mr-3 text-gray-500" />
-                        Messages
-                      </Link>
-                      <Link href="/notifications" className="flex items-center px-4 py-2 text-sm hover:bg-gray-100">
-                        <Bell className="h-4 w-4 mr-3 text-gray-500" />
-                        Notifications
-                      </Link>
-                      <Link href="/dashboard/hotels" className="flex items-center px-4 py-2 text-sm hover:bg-gray-100">
-                        <Settings className="h-4 w-4 mr-3 text-gray-500" />
-                        Tableau de bord
-                      </Link>
+
+                      {user.role.name === 'CLIENT' &&
+                        <>
+                          <Link
+                            href="/bookings"
+                            className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
+                          >
+                            <Calendar className="h-4 w-4 mr-3 text-gray-500" />
+                            Mes réservations
+                          </Link>
+                          <Link
+                            href="/negotiations"
+                            className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
+                          >
+                            <MessageSquare className="h-4 w-4 mr-3 text-gray-500" />
+                            Mes négotiations
+                          </Link>
+                        </>
+                      }
+
+                      {user.role.name === 'MANAGER' &&
+                        <Link href="/dashboard/hotels" className="flex items-center px-4 py-2 text-sm hover:bg-gray-100">
+                          <Settings className="h-4 w-4 mr-3 text-gray-500" />
+                          Tableau de bord
+                        </Link>
+                      }
+
                       <div className="border-t border-gray-100 mt-1"></div>
                       <button
                         onClick={logout}
@@ -222,7 +231,7 @@ export default function Navbar() {
           </div>
         </div>
 
-        {/* Barre de recherche - Mobile */}
+        {/* Barre de recherche - Mobile 
         <div className="md:hidden mt-3">
           <form
             onSubmit={handleSearch}
@@ -240,6 +249,7 @@ export default function Navbar() {
             </button>
           </form>
         </div>
+        */}
 
         {/* Menu mobile déplié */}
         {showMobileMenu && (
