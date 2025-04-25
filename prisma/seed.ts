@@ -4,7 +4,6 @@ import { hash } from "bcryptjs";
 const prisma = new PrismaClient();
 
 async function main() {
-  // Supprimer les données existantes (optionnel, utile pendant le développement)
   await prisma.negotiation.deleteMany();
   await prisma.booking.deleteMany();
   await prisma.roomsTypes.deleteMany();

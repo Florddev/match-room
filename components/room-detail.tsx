@@ -355,7 +355,7 @@ export default function RoomDetail({ params }: { params: RoomParams }) {
       setIsBooking(false);
     }
   };
-
+  
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -830,7 +830,6 @@ export default function RoomDetail({ params }: { params: RoomParams }) {
                 <p>{room.name}</p>
                 <p className="text-sm text-gray-600">{room.hotel.name}</p>
               </div>
-
               <div className="border-t pt-4 mt-4">
                 <h4 className="font-medium text-sm">Détails du prix</h4>
                 <div className="flex justify-between text-sm mt-2">
@@ -848,7 +847,6 @@ export default function RoomDetail({ params }: { params: RoomParams }) {
                   <span>{finalPrice} €</span>
                 </div>
               </div>
-
               {bookingError && (
                 <Alert variant="destructive" className="mt-4">
                   <AlertCircle className="h-4 w-4" />
@@ -856,6 +854,7 @@ export default function RoomDetail({ params }: { params: RoomParams }) {
                   <AlertDescription>{bookingError}</AlertDescription>
                 </Alert>
               )}
+<<<<<<< feature/stripePayment
 
               {bookingSuccess && (
                 <Alert className="bg-green-50 border-green-200 mt-4">
@@ -871,6 +870,7 @@ export default function RoomDetail({ params }: { params: RoomParams }) {
             </div>
           </div>
           <DialogFooter className="sm:justify-between">
+<<<<<<< feature/stripePayment
             <Button
               variant="outline"
               onClick={() => setShowConfirmationDialog(false)}
@@ -926,3 +926,4 @@ export default function RoomDetail({ params }: { params: RoomParams }) {
     </div>
   );
 }
+
