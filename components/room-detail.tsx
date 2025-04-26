@@ -1,23 +1,8 @@
 "use client";
 
-import {
-  ArrowLeft,
-  Check,
-  Euro,
-  Heart,
-  MapPin,
-  Share,
-  Star,
-  User,
-  Calendar,
-  AlertCircle,
-} from "lucide-react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { use, useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
+import { NegotiationDialog } from "@/components/negotiation-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -26,9 +11,24 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Loader2 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
-import { NegotiationDialog } from "@/components/negotiation-dialog";
+import {
+  AlertCircle,
+  ArrowLeft,
+  Calendar,
+  Check,
+  Euro,
+  Heart,
+  Loader2,
+  MapPin,
+  Share,
+  Star,
+  User,
+} from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { use, useEffect, useState } from "react";
+import { toast } from "sonner";
 
 // Types
 type RoomType = {
@@ -439,9 +439,8 @@ export default function RoomDetail({ params }: { params: RoomParams }) {
             className="flex items-center text-sm font-medium hover:underline"
           >
             <Heart
-              className={`h-4 w-4 mr-2 ${
-                isFavorite ? "fill-primary text-primary" : ""
-              }`}
+              className={`h-4 w-4 mr-2 ${isFavorite ? "fill-primary text-primary" : ""
+                }`}
             />
             Enregistrer
           </button>
@@ -450,7 +449,7 @@ export default function RoomDetail({ params }: { params: RoomParams }) {
 
       {/* Galerie d'images */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-8">
-        <div className="relative rounded-l-xl overflow-hidden aspect-[4/3]">
+        <div className="relative rounded-l-xl overflow-hidden h-full">
           <img
             src="/hotel.jpg"
             alt={room.name}
@@ -479,9 +478,8 @@ export default function RoomDetail({ params }: { params: RoomParams }) {
           {[...Array(4)].map((_, i) => (
             <div
               key={i}
-              className={`relative overflow-hidden ${
-                i === 1 ? "rounded-tr-xl" : i === 3 ? "rounded-br-xl" : ""
-              }`}
+              className={`relative overflow-hidden ${i === 1 ? "rounded-tr-xl" : i === 3 ? "rounded-br-xl" : ""
+                }`}
             >
               <img
                 src="/hotel.jpg"
@@ -568,9 +566,8 @@ export default function RoomDetail({ params }: { params: RoomParams }) {
               >
                 {showAllAmenities
                   ? "Afficher moins"
-                  : `Afficher les ${
-                      amenities.length - 8
-                    } équipements supplémentaires`}
+                  : `Afficher les ${amenities.length - 8
+                  } équipements supplémentaires`}
               </button>
             )}
           </div>

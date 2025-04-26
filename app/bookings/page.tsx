@@ -1,26 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Button } from "@/components/ui/button";
 import {
+  ArrowRight,
   Calendar,
   Clock,
-  MapPin,
   Home,
-  ArrowRight,
   Loader2,
+  MapPin
 } from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+
 import { useAuth } from "@/lib/auth-context";
 
 type Booking = {
@@ -51,13 +44,12 @@ export default function BookingsPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Rediriger vers la page de connexion si l'utilisateur n'est pas connecté
     if (user == null) {
       router.push("/auth/login?redirect=/bookings");
       return;
     }
     fetchBookings();
-  }, [status, router]);
+  }, [user, router]);
 
   const fetchBookings = async () => {
     try {
@@ -115,11 +107,17 @@ export default function BookingsPage() {
   const getPaymentStatusStyle = (status: string) => {
     switch (status) {
       case "PAID":
-        return { label: "Payé", color: "bg-green-100 text-green-700" };
+        return { label: "Payé", color: "bg-blue-100 text-blue-700" };
       case "PENDING":
         return { label: "En attente", color: "bg-yellow-100 text-yellow-700" };
       case "CANCELLED":
         return { label: "Annulé", color: "bg-red-100 text-red-700" };
+      case "COMPLETED":
+        return { label: "Terminé", color: "bg-purple-100 text-purple-700" };
+      case "CONFIRMED":
+        return { label: "Confirmé", color: "bg-green-100 text-green-700" };
+      case "REFUNDED":
+        return { label: "Remboursé", color: "bg-orange-100 text-orange-700" };
       default:
         return { label: status, color: "bg-gray-100 text-gray-700" };
     }
@@ -192,87 +190,89 @@ export default function BookingsPage() {
             );
 
             return (
-              <Card key={booking.id} className="overflow-hidden">
-                <div className="aspect-video relative">
+              <div
+                key={booking.id}
+                className="group flex flex-col h-full bg-white rounded-xl overflow-hidden hover:shadow-md transition-all border border-gray-200"
+              >
+                {/* Image et badges */}
+                <div className="relative overflow-hidden aspect-[4/3]">
                   <img
                     src="/hotel.jpg"
                     alt={booking.room.name}
-                    className="w-full h-full object-cover"
+                    className="object-cover w-full h-full transition-transform group-hover:scale-105 duration-300"
                   />
-                  <div
-                    className={`absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-medium`}
-                  >
-                    <div
-                      className={`px-3 py-1 rounded-full text-xs font-medium ${status.color}`}
-                    >
+
+                  {/* Badges de statuts */}
+                  <div className="absolute top-3 right-3 space-y-2">
+                    <div className={`px-3 py-1 rounded-full text-xs font-medium ${status.color}`}>
                       {status.label}
                     </div>
-                    <div
-                      className={`px-3 py-1 rounded-full text-xs font-medium ${paymentStatus.color}`}
-                    >
+                    <div className={`px-3 py-1 rounded-full text-xs font-medium ${paymentStatus.color}`}>
                       {paymentStatus.label}
                     </div>
                   </div>
+
+                  {/* Prix */}
+                  <div className="absolute bottom-3 left-3 bg-white px-3 py-1 rounded-full text-sm font-medium shadow-sm">
+                    {booking.price} € <span className="text-xs font-normal">/ total</span>
+                  </div>
                 </div>
 
-                <CardHeader>
-                  <CardTitle>{booking.room.name}</CardTitle>
-                  <CardDescription>{booking.room.hotel.name}</CardDescription>
-                </CardHeader>
+                {/* Informations de réservation */}
+                <div className="flex-grow p-4">
+                  <div className="flex justify-between items-start">
+                    <h3 className="font-medium text-gray-900 line-clamp-1">{booking.room.name}</h3>
+                  </div>
 
-                <CardContent className="space-y-4">
-                  <div className="flex items-start space-x-3">
-                    <Calendar className="h-5 w-5 text-gray-500 mt-0.5" />
-                    <div>
-                      <p className="font-medium">Date du séjour</p>
-                      <p className="text-sm text-gray-500">
-                        Du {formatDate(booking.startDate)} au{" "}
-                        {formatDate(booking.endDate)}
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        {duration} nuit{duration > 1 ? "s" : ""}
-                      </p>
+                  <div className="mt-2 text-gray-500 text-sm flex items-start">
+                    <MapPin className="h-4 w-4 shrink-0 mt-0.5 mr-1" />
+                    <span className="line-clamp-1">
+                      {booking.room.hotel.name}, {booking.room.hotel.zipCode} {booking.room.hotel.city}
+                    </span>
+                  </div>
+
+                  <div className="mt-4 space-y-3">
+                    <div className="flex items-start space-x-3">
+                      <Calendar className="h-5 w-5 text-gray-500 mt-0.5" />
+                      <div>
+                        <p className="font-medium">Date du séjour</p>
+                        <p className="text-sm text-gray-500">
+                          Du {formatDate(booking.startDate)} au{" "}
+                          {formatDate(booking.endDate)}
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          {duration} nuit{duration > 1 ? "s" : ""}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start space-x-3">
+                      <Clock className="h-5 w-5 text-gray-500 mt-0.5" />
+                      <div>
+                        <p className="font-medium">Arrivée & Départ</p>
+                        <p className="text-sm text-gray-500">
+                          Arrivée à partir de 14h, départ jusqu'à 11h
+                        </p>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="flex items-start space-x-3">
-                    <MapPin className="h-5 w-5 text-gray-500 mt-0.5" />
-                    <div>
-                      <p className="font-medium">Adresse</p>
-                      <p className="text-sm text-gray-500">
-                        {booking.room.hotel.address}, {booking.room.hotel.city}{" "}
-                        {booking.room.hotel.zipCode}
-                      </p>
-                    </div>
+                  <div className="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center">
+                    <span className="text-xs text-gray-500">
+                      Réservation du {new Date(booking.startDate).toLocaleDateString()}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-sm flex items-center gap-1"
+                      onClick={() => router.push(`/room/${booking.room.id}`)}
+                    >
+                      Voir la chambre
+                      <ArrowRight className="h-4 w-4" />
+                    </Button>
                   </div>
-
-                  <div className="flex items-start space-x-3">
-                    <Clock className="h-5 w-5 text-gray-500 mt-0.5" />
-                    <div>
-                      <p className="font-medium">Arrivée & Départ</p>
-                      <p className="text-sm text-gray-500">
-                        Arrivée à partir de 14h, départ jusqu'à 11h
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-
-                <CardFooter className="flex justify-between items-center border-t pt-4">
-                  <div>
-                    <p className="text-lg font-bold">{booking.price} €</p>
-                    <p className="text-xs text-gray-500">Prix total</p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-sm"
-                    onClick={() => router.push(`/room/${booking.room.id}`)}
-                  >
-                    Voir la chambre
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </CardFooter>
-              </Card>
+                </div>
+              </div>
             );
           })}
         </div>
